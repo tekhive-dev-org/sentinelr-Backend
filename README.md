@@ -6,6 +6,6 @@
 
 * Filtering content (web access control)  
 
-* Tracking devices (possibly GPS)  
+* Tracking devices (GPS)  
 
 * Monitoring activity  
