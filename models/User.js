@@ -17,8 +17,21 @@ const User = dbConnection.define('User', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    verified: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    otp: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    otpExpiredAt: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     role: {
         type: DataTypes.ENUM('Personal', 'Parent', 'Child'),
+        defaultValue: 'Personal',
         allowNull: false
     }
 }, 
