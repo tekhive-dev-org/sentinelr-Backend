@@ -21,6 +21,10 @@ const User = dbConnection.define('User', {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
+    blocked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
     otp: {
         type: DataTypes.STRING,
         allowNull: true
@@ -29,8 +33,12 @@ const User = dbConnection.define('User', {
         type: DataTypes.DATE,
         allowNull: true
     },
+    profilePicture: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     role: {
-        type: DataTypes.ENUM('Personal', 'Parent', 'Child'),
+        type: DataTypes.ENUM('Personal', 'Parent', 'Child', 'Admin', 'SuperAdmin'),
         defaultValue: 'Personal',
         allowNull: false
     }

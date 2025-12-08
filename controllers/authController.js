@@ -3,8 +3,38 @@ const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
-const { User, dbConnection } = require('../models')
+const { User, Family, FamilyMember, Device, dbConnection } = require('../models')
+const { Op } = require('sequelize')
+const axios = require("axios");
 
+
+
+
+
+exports.createFirstSuperAdmin = async () => {
+    try {
+
+        const existing = await User.findOne({ where: { role: "SuperAdmin" } });
+
+        if (!existing) {
+            await User.create({
+                userName: "Super Admin",
+                email: process.env.SUPER_ADMIN_EMAIL,
+                password: process.env.SUPER_ADMIN_PASSWORD,
+                role: "SuperAdmin",
+ 		verified: true
+            });
+
+            console.log("✔ First super admin created");
+        } else {
+            console.log("✔ Super admin already exists");
+        }
+
+    } catch (error) {
+        console.error("❌ Error creating first super admin:", error);
+        throw error;
+    }
+};
 
 
 exports.login = async(req, res, next) => {
@@ -61,14 +91,14 @@ exports.register = async (req, res, next) => {
 
     const otp = generateOtp()
     const hashedOtp = await hashOtp(otp)
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000)
+    const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
 
     const newUser = await User.create({
       userName,
       email,
       password,
       otp: hashedOtp, 
-      otpExpiresAt, 
+      otpExpiredAt, 
       verified: false,
       role: role || 'Personal'
     }, { transaction: atomic })
@@ -79,12 +109,16 @@ exports.register = async (req, res, next) => {
       { expiresIn: '1h' }
     )
 
+    await axios.post("https://techhive-backend-zmq5.onrender.com/api/send/email", {
+        to: newUser.email,
+        subject: "Your OTP",
+        html: `<p>Your OTP is <b>${otp}</b></p>`
+    })
+
     await atomic.commit()
 
-    await sendEmailOTP(newUser.email, otp)
-
     return res.status(201).json({
-      message: 'User registered successfully.\n Please Verify Your Email',
+      message: 'User registered successfully. Please Verify Your Email',
       user: {
         id: newUser.id,
         userName: newUser.userName,
@@ -125,19 +159,23 @@ exports.verifyOTP = async (req, res, next) => {
       return res.status(400).json({ message: 'User already verified.' });
     }
 
+    if (new Date() > new Date(user.otpExpiredAt)) {
+      user.otp = null;
+      user.otpExpiredAt = null;
+      await user.save();
+      return res.status(400).json({ message: 'OTP expired.' });
+    }
+
     const isMatch = await bcrypt.compare(otp, user.otp);
 
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid OTP.' });
     }
-
-    if (new Date() > new Date(user.otpExpiresAt)) {
-      return res.status(400).json({ message: 'OTP expired.' });
-    }
+    
 
     user.verified = true;
     user.otp = null;
-    user.otpExpiresAt = null;
+    user.otpExpiredAt = null;
     await user.save();
 
     return res.status(200).json({ message: 'Email verified successfully.' });
@@ -146,7 +184,357 @@ exports.verifyOTP = async (req, res, next) => {
     console.error('Error verifying OTP:', error);
     next(error);
   }
-};
+}
+
+exports.resetPassword = async (req, res, next) => {
+  const atomic = await dbConnection.transaction()
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body
+
+    if (email && !otp && !newPassword && !confirmPassword) {
+      const user = await User.findOne({ where: { email }, transaction: atomic })
+      if (!user) {
+        await atomic.rollback()
+        return res.status(404).json({ message: 'User not found.' })
+      }
+
+      const generatedOtp = generateOtp()
+      const hashedOtp = await hashOtp(generatedOtp)
+      const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
+
+      await user.update(
+        { otp: hashedOtp, otpExpiredAt },
+        { transaction: atomic }
+      )
+      await atomic.commit()
+
+      // await sendEmailOTP(email, generatedOtp)
+      await axios.post("https://techhive-backend-zmq5.onrender.com/api/send/email", {
+        to: email,
+        subject: "Your OTP",
+        html: `<p>Your OTP is <b>${generatedOtp}</b></p>`
+      })
+
+        return res.status(200).json({
+        message: 'OTP sent to your email. Please verify to reset your password.'
+      })
+    }
+
+    if (otp && newPassword && confirmPassword && !email) {
+        const users = await User.findAll({
+            where: {
+                otp: { [Op.ne]: null },
+                otpExpiredAt: { [Op.gt]: new Date() }
+            },
+            transaction: atomic
+        });
+
+        let matchedUser = null;
+
+        for (const usr of users) {
+            const isOtpValid = await bcrypt.compare(otp, usr.otp);
+            if (isOtpValid) {
+                matchedUser = usr;
+                break;
+            }
+        }
+
+        if (!matchedUser) {
+            await atomic.rollback();
+            return res.status(404).json({
+                message: 'No reset request found or OTP expired.'
+            });
+        }
+
+        if (matchedUser.otpExpiredAt < new Date()) {
+            await atomic.rollback();
+            return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: 'Passwords do not match.' });
+        }
+
+        const passwordRegex =
+            /^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(400).json({
+                message:
+                    'Password must contain at least one uppercase letter, one number, and one special character.'
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+        await matchedUser.update(
+            { password: hashedPassword, otp: null, otpExpiredAt: null },
+            { transaction: atomic }
+        );
+
+        await atomic.commit();
+        return res.status(200).json({ message: 'Password reset successfully.' });
+    }
+
+    return res.status(400).json({
+      message:
+        'Invalid request. Provide only email to request reset, or otp + new passwords to complete reset.'
+    })
+  } 
+  catch (error) {
+    await atomic.rollback()
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.updateProfilePicture = async (req, res) => {
+  try{
+      if(!req.file){ return res.status(400).json({ message: 'No Picture Selected For Upload' }) }
+
+      const imagePath = `../uploads/profile-pictures/${req.file.filename}`;
+
+        await User.update(
+            { profilePicture: imagePath },
+            { where: { id: req.user.id } }
+        );
+
+        res.status(200).json({
+            message: "Profile picture updated successfully",
+            profilePicture: imagePath
+        });
+  }
+  catch(error){
+    console.error(error)
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
+exports.getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'userName', 'email', 'role', 'verified', 'blocked', 'createdAt'],
+      order: [['createdAt', 'DESC']]
+    })
+
+    return res.status(200).json({
+      count: users.length,
+      users
+    })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.blockUser = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { action } = req.body
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    if (!["block", "unblock"].includes(action)) {
+      return res.status(400).json({
+        message: "Invalid action. Use 'block' or 'unblock'."
+      });
+    }
+
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (req.user && req.user.id === user.id) {
+      return res.status(400).json({
+        message: "You cannot block your own account."
+      });
+    }
+
+    const shouldBlock = action === "block";
+
+    if (user.blocked === shouldBlock) {
+      return res.status(400).json({
+        message: `User is already ${shouldBlock ? "blocked" : "unblocked"}.`
+      });
+    }
+
+    await user.update({ blocked: shouldBlock });
+
+    return res.status(200).json({
+      message: `User has been successfully ${shouldBlock ? "blocked" : "unblocked"}.`,
+      user: {
+        id: user.id,
+        userName: user.userName,
+        email: user.email,
+        role: user.role,
+        blocked: user.blocked
+      }
+    });
+  } catch (error) {
+    console.error("Error blocking user:", error);
+    next(error);
+  }
+}
+
+exports.getAllBlockedUsers = async (req, res, next) => {
+  try {
+    const { blocked } = req.query
+    const isBlocked = blocked === 'false' ? false : true
+
+    const blockedUsers = await User.findAll({
+      where: { blocked: isBlocked },
+      attributes: ['id', 'userName', 'email', 'role', 'blocked', 'createdAt'],
+      order: [['createdAt', 'DESC']]
+    })
+
+    return res.status(200).json({
+      count: blockedUsers.length,
+      blockedUsers
+    })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
+
+exports.getAllVerifiedUsers = async (req, res, next) => {
+  try {
+    const { verified } = req.query
+    const isVerified = verified === 'false' ? false : true
+
+    const verifiedUsers = await User.findAll({
+      where: { verified: isVerified },
+      attributes: ['id', 'userName', 'email', 'role', 'verified', 'createdAt'],
+      order: [['createdAt', 'DESC']]
+    })
+
+    return res.status(200).json({
+      count: verifiedUsers.length,
+      verifiedUsers
+    })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.createFamily = async (req, res, next) => {
+  const transaction = await dbConnection.transaction()
+  try {
+    const { familyName } = req.body
+    const userId = req.user.id
+
+    if (!familyName) {
+      await transaction.rollback()
+      return res.status(400).json({ message: 'Family name is required.' })
+    }
+
+    const existing = await Family.findOne({ where: { familyName, createdBy: userId } })
+    if (existing) {
+      await transaction.rollback()
+      return res.status(400).json({ message: 'You already created a family with this name.' })
+    }
+
+    const family = await Family.create({ familyName, createdBy: userId }, { transaction })
+    await FamilyMember.create(
+      { userId, familyId: family.id, relationship: 'Parent' },
+      { transaction }
+    )
+
+    await transaction.commit()
+    res.status(201).json({ message: 'Family created successfully.', family })
+  } catch (error) {
+    await transaction.rollback()
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.addMemberToFamily = async (req, res, next) => {
+  const transaction = await dbConnection.transaction()
+  try {
+    const { familyId, userId, relationship } = req.body
+    const creatorId = req.user.id
+
+    const family = await Family.findByPk(familyId)
+    if (!family) {
+      await transaction.rollback()
+      return res.status(404).json({ message: 'Family not found.' })
+    }
+
+    if (family.createdBy !== creatorId) {
+      await transaction.rollback()
+      return res.status(403).json({ message: 'You are not allowed to add members to this family.' })
+    }
+
+    const memberExists = await FamilyMember.findOne({
+      where: { userId, familyId },
+      transaction
+    })
+
+    if (memberExists) {
+      await transaction.rollback()
+      return res.status(400).json({ message: 'This user is already a family member.' })
+    }
+
+    await FamilyMember.create({ userId, familyId, relationship }, { transaction })
+    await transaction.commit()
+
+    res.status(201).json({ message: 'Member added successfully.' })
+  } catch (error) {
+    await transaction.rollback()
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.viewDevices = async (req, res, next) => {
+  try {
+    const userId = req.user.id
+    const devices = await Device.findAll({ where: { userId } })
+
+    if (!devices.length) {
+      return res.status(404).json({ message: 'No devices found.' })
+    }
+
+    res.status(200).json({ devices })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.viewFamilyMembers = async (req, res, next) => {
+  try {
+    const { familyId } = req.params
+
+    const family = await Family.findByPk(familyId, {
+      include: [
+        {
+          model: User,
+          as: 'members',
+          attributes: ['id', 'email', 'firstName', 'lastName'],
+          through: { attributes: ['relationship'] }
+        }
+      ]
+    })
+
+    if (!family) {
+      return res.status(404).json({ message: 'Family not found.' })
+    }
+
+    res.status(200).json({ family })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
 
 
 
@@ -164,18 +552,19 @@ async function hashOtp(otp) {
     return hashedOtp
 }
 
-async function sendEmailOTP(toEmail, otp) {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-  })
+// async function sendEmailOTP(toEmail, otp) {
+//   const transporter = nodemailer.createTransport({
+//     host: process.env.SMTP_HOST,
+//     port: process.env.SMTP_PORT,
+//     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+//   })
 
-  await transporter.sendMail({
-    from: `Sentinelr  <${process.env.SMTP_USER}>`,
-    to: toEmail,
-    subject: 'Verify Your Account',
-    text: `Your OTP for account verification is ${otp}. It expires in 10 minutes.`
-  })
-}
+//   await transporter.sendMail({
+//     from: `Sentinelr  <${process.env.SMTP_USER}>`,
+//     to: toEmail,
+//     subject: 'Verify Your Account',
+//     text: `Your OTP for account verification is ${otp}. It expires in 10 minutes.`
+//   })
+// }
+
 
