@@ -10,7 +10,15 @@ const Family = dbConnection.define('Family',{
     createdBy: {
         type: DataTypes.INTEGER,
         allowNull: false
+    },
+    deletedAt: {
+        type: DataTypes.DATE
     }
+},
+{
+    paranoid: true,
+    timestamps: true,
+    // deletedAt: 'deletedAt'
 }
 )
 

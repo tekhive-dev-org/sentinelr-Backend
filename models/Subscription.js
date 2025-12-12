@@ -25,7 +25,16 @@ const Subscription = dbConnection.define('Subscription', {
   amount: {
     type: DataTypes.FLOAT,
     allowNull: false
+  },
+  deletedAt: {
+    type: DataTypes.DATE
   }
-})
+},
+{
+    paranoid: true,
+    timestamps: true,
+    // deletedAt: 'deletedAt'
+}
+)
 
 module.exports = Subscription

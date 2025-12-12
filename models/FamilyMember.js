@@ -14,7 +14,15 @@ const FamilyMember = dbConnection.define('FamilyMember',{
     relationship: {
         type: DataTypes.ENUM('Parent', 'Child'),
         allowNull: false
+    },
+    deletedAt: {
+        type: DataTypes.DATE
     }
+},
+{
+    paranoid: true,
+    timestamps: true,
+    // deletedAt: 'deletedAt'
 }
 )
 

@@ -11,7 +11,16 @@ const Location = dbConnection.define('Location', {
     timestamp: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    deletedAt: {
+        type: DataTypes.DATE
     }
-})
+},
+{
+    paranoid: true,
+    timestamps: true,
+    // deletedAt: 'deletedAt'
+}
+)
 
 module.exports = Location

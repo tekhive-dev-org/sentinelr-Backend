@@ -17,6 +17,11 @@ const User = dbConnection.define('User', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: { len: [7, 20] }
+    },
     verified: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
@@ -41,9 +46,15 @@ const User = dbConnection.define('User', {
         type: DataTypes.ENUM('Personal', 'Parent', 'Child', 'Admin', 'SuperAdmin'),
         defaultValue: 'Personal',
         allowNull: false
+    },
+    deletedAt: {
+        type: DataTypes.DATE
     }
 }, 
 {
+    paranoid: true,
+    timestamps: true,
+    // deletedAt: 'deletedAt',
     hooks: {
         beforeCreate: async (user) => {
             user.password = await bcrypt.hash(user.password, 10)

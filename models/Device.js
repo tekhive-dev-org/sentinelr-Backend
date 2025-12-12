@@ -10,7 +10,15 @@ const Device = dbConnection.define('Device',{
     userId: {
         type: DataTypes.INTEGER,
         allowNull: false
+    },
+    deletedAt: {
+        type: DataTypes.DATE
     }
+},
+{
+    paranoid: true,
+    timestamps: true,
+    // deletedAt: 'deletedAt'
 }
 )
 
