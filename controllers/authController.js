@@ -1,11 +1,11 @@
 require('dotenv').config()
-const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
 const { User, Family, FamilyMember, Device, dbConnection } = require('../models')
 const { Op } = require('sequelize')
-const axios = require("axios");
+const axios = require("axios")
+const { uploadToCloud, deleteFromCloud }= require('../middleware/cloudinary')
 
 
 
@@ -290,9 +290,27 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.updateProfilePicture = async (req, res) => {
   try{
-      if(!req.file){ return res.status(400).json({ message: 'No Picture Selected For Upload' }) }
+        if(!req.file){ return res.status(400).json({ message: 'No Picture Selected For Upload' }) }
 
-      const imagePath = `../uploads/profile-pictures/${req.file.filename}`;
+        let imagePath
+
+        if (process.env.NODE_ENV === 'production') {
+          const user = await User.findByPk(req.user.id);
+          let oldPublicId = null;
+          if (user && user.profilePicture) {
+              const match = user.profilePicture.match(/profile-pictures\/(.+)\./)
+              if (match) oldPublicId = `profile-pictures/${match[1]}`;
+          }
+
+          const result = await uploadToCloud(req.file.buffer);
+          imagePath = result.secure_url
+
+          if (oldPublicId) await deleteFromCloud(oldPublicId)
+        }
+        else
+        {
+          imagePath = `../uploads/profile-pictures/${req.file.filename}`
+        }
 
         await User.update(
             { profilePicture: imagePath },
@@ -302,7 +320,7 @@ exports.updateProfilePicture = async (req, res) => {
         res.status(200).json({
             message: "Profile picture updated successfully",
             profilePicture: imagePath
-        });
+        })
   }
   catch(error){
     console.error(error)
@@ -551,6 +569,8 @@ async function hashOtp(otp) {
     const hashedOtp = await bcrypt.hash(otp, saltRounds)
     return hashedOtp
 }
+
+
 
 // async function sendEmailOTP(toEmail, otp) {
 //   const transporter = nodemailer.createTransport({
