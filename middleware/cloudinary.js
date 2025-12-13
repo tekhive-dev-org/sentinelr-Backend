@@ -8,10 +8,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-cloudinary.uploader.upload('../uploads/profile-pictures/1765054971773.jpg', { folder: 'test' }, (err, result) => {
-  if (err) console.error(err);
-  else console.log('Uploaded:', result.secure_url);
-})
+// cloudinary.uploader.upload('C:\\Users\\DELL\\TechHive Projects\\Sentinelr\\uploads\\profile-pictures\\1765054971773.jpg', { folder: 'test' }, (err, result) => {
+//   if (err) console.error(err);
+//   else console.log('Uploaded:', result.secure_url);
+// })
+// Uploaded: https://res.cloudinary.com/dsarn5qvg/image/upload/v1765629075/test/ddhhomaesd3xt4l6yz5a.jpg
 
 const uploadToCloud = (fileBuffer) => {
   return new Promise((resolve, reject) => {
