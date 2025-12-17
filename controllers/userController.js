@@ -13,6 +13,12 @@ exports.updateUserProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        if (!user.verified) {
+            return res.status(403).json({
+                message: "Please verify your account before updating your profile"
+            })
+        }
+
         const updatedFields = { id: user.id };
 
 
@@ -58,16 +64,22 @@ exports.softDeleteAccount = async (req, res) => {
         const { password } = req.body;
 
         if (!password)
-            return res.status(400).json({ message: "Password is required" });
+            return res.status(400).json({ message: "Password is required" })
 
-        const user = await User.findByPk(userId);
+        const user = await User.findByPk(userId)
+
+        if (!user.verified) {
+            return res.status(403).json({
+                message: "You have to verify your account to perform this action"
+            })
+        }
 
         if (!user)
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "User not found" })
 
         const match = await bcrypt.compare(password, user.password);
         if (!match)
-            return res.status(401).json({ message: "Incorrect password" });
+            return res.status(401).json({ message: "Incorrect password" })
 
         await user.destroy();
 
@@ -86,6 +98,12 @@ exports.softDeleteAccount = async (req, res) => {
 exports.restoreDeletedAccount = async (req, res) => {
     try {
         const userId = req.user.id;
+
+        if (!req.user.verified) {
+            return res.status(403).json({
+                message: "You have to verify your account to perform this action"
+            })
+        }
 
         await User.restore({ where: { id: userId } });
 

@@ -22,7 +22,8 @@ else {
         process.env.DB_PASSWORD,
         {
             host: process.env.DB_HOST,
-            logging: false,
+            logging: console.log,
+            // logging: false,
             // dialect: 'mysql'
             // url: process.env.DATABASE_URL
             port: process.env.DB_PORT || 5432,

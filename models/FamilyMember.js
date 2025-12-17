@@ -22,6 +22,15 @@ const FamilyMember = dbConnection.define('FamilyMember',{
 {
     paranoid: true,
     timestamps: true,
+    indexes: [
+        {
+            unique: true,
+            fields: ['familyId', 'userId'],
+            where: {
+                deletedAt: null
+            }
+        }
+    ]
     // deletedAt: 'deletedAt'
 }
 )

@@ -2,26 +2,30 @@ const express = require('express')
 const authController = require('../controllers/authController')
 const userController = require('../controllers/userController')
 const upload = require('../middleware/upload')
-const { authenticate, authorizeAdmin } = require('../middleware/auth')
+const { authenticate, authorizeAdmin, requireParent } = require('../middleware/auth')
 const authRouter = express.Router()
 
-authRouter.post('/login', authController.login)
-authRouter.post('/register', authController.register)
-authRouter.post('/reset-password', authController.resetPassword)
-authRouter.post('/verify', authenticate, authController.verifyOTP)
-authRouter.put('/update-profile-picture', authenticate, upload.single('profilePicture'), authController.updateProfilePicture)
-authRouter.get('/users/verified', authenticate, authorizeAdmin, authController.getAllVerifiedUsers)
-authRouter.patch('/users/:userId/block', authenticate, authorizeAdmin, authController.blockUser)
-authRouter.get('/users/blocked', authenticate, authorizeAdmin, authController.getAllBlockedUsers)
-authRouter.get('/users/all', authenticate, authorizeAdmin, authController.getAllUsers)
+authRouter.post('auth/login', authController.login)
+authRouter.post('auth/register', authController.register)
+authRouter.post('auth/reset-password', authController.resetPassword)
+authRouter.post('auth/verify/otp', authenticate, authController.verifyOTP)
+authRouter.post('/auth/send/otp', authenticate, authController.sendOtpEmail)
 
+authRouter.get('/admin/verified', authenticate, authorizeAdmin, authController.getAllVerifiedUsers)
+authRouter.patch('/admin/:userId/block', authenticate, authorizeAdmin, authController.blockUser)
+authRouter.get('/admin/blocked', authenticate, authorizeAdmin, authController.getAllBlockedUsers)
+authRouter.get('/admin/all', authenticate, authorizeAdmin, authController.getAllUsers)
+authRouter.post('admin/restore-delete', authenticate, authorizeAdmin, userController.restoreDeletedAccount)
+
+authRouter.put('/user/update-profile-picture', authenticate, upload.single('profilePicture'), authController.updateProfilePicture)
 authRouter.put('/user/update-profile', authenticate, userController.updateUserProfile)
 authRouter.delete('user/soft-delete', authenticate, userController.softDeleteAccount)
-authRouter.post('user/restore-delete', authenticate, userController.restoreDeletedAccount)
 
-authRouter.post('/family/create-family', authenticate, authController.createFamily)
-authRouter.post('/family/add-member', authenticate, authController.addMemberToFamily)
+
+authRouter.post('/family/create-family', authenticate, requireParent, authController.createFamily)
+authRouter.post('/family/add-member', authenticate, requireParent, authController.addMemberToFamily)
 authRouter.get('/family/:familyId/members', authenticate, authController.viewFamilyMembers)
+
 authRouter.get('/devices', authenticate, authController.viewDevices)
 
 

@@ -9,7 +9,8 @@ const Family = dbConnection.define('Family',{
     },
     createdBy: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        unique: true
     },
     deletedAt: {
         type: DataTypes.DATE

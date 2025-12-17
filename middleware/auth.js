@@ -56,7 +56,19 @@ const authorizeAdmin = (req, res, next) => {
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
-};
+}
 
 
-module.exports = { authenticate, authorizeAdmin }
+const requireParent = (req, res, next) => {
+  const user = req.user
+  if (user.role !== 'Parent') {
+    return res.status(403).json({
+      message: 'Only parents are allowed to perform this action.'
+    });
+  }
+  next()
+}
+
+
+
+module.exports = { authenticate, authorizeAdmin, requireParent }

@@ -1,5 +1,6 @@
 const express = require('express')
 const http = require('http')
+const rateLimit = require('express-rate-limit')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const authRoute = require('./routes/authRoute')
@@ -36,8 +37,17 @@ const io = new Server(server, {
 socketHandler(io)
 global.io = io
 
+
+app.use(
+  rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false
+  })
+)
 app.use('/uploads', express.static('uploads'));
-app.use('/api/auth', authRoute)
+app.use('/api', authRoute)
 app.get('/', (req, res) => { res.send('API is running !') })
 
 module.exports = server

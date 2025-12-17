@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt')
 const { User, Family, FamilyMember, Device, dbConnection } = require('../models')
 const { Op } = require('sequelize')
 const axios = require("axios")
+const { sendOtpEmail } = require("../services/emailService");
 const { uploadToCloud, deleteFromCloud }= require('../middleware/cloudinary')
 
 
@@ -109,11 +110,7 @@ exports.register = async (req, res, next) => {
       { expiresIn: '1h' }
     )
 
-    await axios.post("https://techhive-backend-zmq5.onrender.com/api/send/email", {
-        to: newUser.email,
-        subject: "Your OTP",
-        html: `<p>Your OTP is <b>${otp}</b></p>`
-    })
+    await sendOtpEmail(newUser.email, otp)
 
     await atomic.commit()
 
@@ -191,8 +188,21 @@ exports.resetPassword = async (req, res, next) => {
   try {
     const { email, otp, newPassword, confirmPassword } = req.body
 
+    // if (!req.user.verified) {
+    //         return res.status(403).json({
+    //             message: "You need to verify your account"
+    //         });
+    // }
+
     if (email && !otp && !newPassword && !confirmPassword) {
       const user = await User.findOne({ where: { email }, transaction: atomic })
+
+      if (!user.verified) {
+            return res.status(403).json({
+                message: "You have to verify your account to perform this action"
+            })
+      }
+
       if (!user) {
         await atomic.rollback()
         return res.status(404).json({ message: 'User not found.' })
@@ -223,6 +233,7 @@ exports.resetPassword = async (req, res, next) => {
     if (otp && newPassword && confirmPassword && !email) {
         const users = await User.findAll({
             where: {
+                verified: true,
                 otp: { [Op.ne]: null },
                 otpExpiredAt: { [Op.gt]: new Date() }
             },
@@ -288,9 +299,49 @@ exports.resetPassword = async (req, res, next) => {
   }
 }
 
+exports.sendOtpEmail = async (req, res) => {
+  const atomic = await dbConnection.transaction()
+
+  try {
+    const user = req.user;
+
+    if (!user || !user.email) {
+      return res.status(401).json({ error: "You need to sign in" });
+    }
+
+    const otp = generateOtp()
+    const hashedOtp = await hashOtp(otp)
+
+    const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
+
+    await user.update(
+      { otp: hashedOtp, otpExpiredAt },
+      { transaction: atomic }
+    );
+    await atomic.commit();
+
+    await sendOtpEmail(user.email, otp);
+
+    return res.status(200).json({ message: "OTP email sent" });
+  } catch (err) {
+    console.error("sendOtpEmailApi error:", err);
+
+    // Rollback transaction if it exists
+    if (atomic) await atomic.rollback();
+
+    return res.status(500).json({ error: "Failed to send email" });
+  }
+}
+
 exports.updateProfilePicture = async (req, res) => {
   try{
         if(!req.file){ return res.status(400).json({ message: 'No Picture Selected For Upload' }) }
+
+        if (!req.user.verified) {
+            return res.status(403).json({
+                message: "Please verify your account before updating profile picture"
+            });
+        }
 
         let imagePath
 
@@ -447,15 +498,21 @@ exports.createFamily = async (req, res, next) => {
     const { familyName } = req.body
     const userId = req.user.id
 
+    if (!req.user.verified) {
+            return res.status(403).json({
+                message: "Please verify your account"
+            });
+    }
+
     if (!familyName) {
       await transaction.rollback()
       return res.status(400).json({ message: 'Family name is required.' })
     }
 
-    const existing = await Family.findOne({ where: { familyName, createdBy: userId } })
+    const existing = await Family.findOne({ where: { createdBy: userId } })
     if (existing) {
       await transaction.rollback()
-      return res.status(400).json({ message: 'You already created a family with this name.' })
+      return res.status(400).json({ message: 'You already created a family.' })
     }
 
     const family = await Family.create({ familyName, createdBy: userId }, { transaction })
@@ -478,6 +535,12 @@ exports.addMemberToFamily = async (req, res, next) => {
   try {
     const { familyId, userId, relationship } = req.body
     const creatorId = req.user.id
+
+    if (!req.user.verified) {
+            return res.status(403).json({
+                message: "Please verify your account before updating your profile"
+            });
+    }
 
     const family = await Family.findByPk(familyId)
     if (!family) {
@@ -511,25 +574,15 @@ exports.addMemberToFamily = async (req, res, next) => {
   }
 }
 
-exports.viewDevices = async (req, res, next) => {
-  try {
-    const userId = req.user.id
-    const devices = await Device.findAll({ where: { userId } })
-
-    if (!devices.length) {
-      return res.status(404).json({ message: 'No devices found.' })
-    }
-
-    res.status(200).json({ devices })
-  } catch (error) {
-    console.error(error)
-    next(error)
-  }
-}
-
 exports.viewFamilyMembers = async (req, res, next) => {
   try {
     const { familyId } = req.params
+
+    if (!req.user.verified) {
+            return res.status(403).json({
+                message: "Please verify your account before updating your profile"
+            });
+    }
 
     const family = await Family.findByPk(familyId, {
       include: [
@@ -547,6 +600,22 @@ exports.viewFamilyMembers = async (req, res, next) => {
     }
 
     res.status(200).json({ family })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.viewDevices = async (req, res, next) => {
+  try {
+    const userId = req.user.id
+    const devices = await Device.findAll({ where: { userId } })
+
+    if (!devices.length) {
+      return res.status(404).json({ message: 'No devices found.' })
+    }
+
+    res.status(200).json({ devices })
   } catch (error) {
     console.error(error)
     next(error)
