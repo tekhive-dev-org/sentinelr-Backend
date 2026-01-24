@@ -45,6 +45,8 @@ exports.login = async(req, res, next) => {
         const user = await User.findOne({ where: { email } })
         if(!user){ return res.status(404).json({ message: "User Not Found !" }) }
 
+        if (!user.verified) { return res.status(403).json({ message: 'Please verify your email before logging in' })}
+
         const match = await bcrypt.compare(password, user.password)
         if(!match){ return res.status(401).json({ message: "Invalid Password !" }) }
 
@@ -301,12 +303,25 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.sendOtpEmail = async (req, res) => {
   const atomic = await dbConnection.transaction()
+  const OTP_LIFETIME = 10 * 60 * 1000
+  const COOLDOWN = 2 * 60 * 1000
 
   try {
     const user = req.user;
 
     if (!user || !user.email) {
-      return res.status(401).json({ error: "You need to sign in" });
+      return res.status(401).json({ error: "You need to register" });
+    }
+
+    if (user.verified) {
+      return res.status(400).json({ message: "User already verified" })
+    }
+
+    if (user.otpExpiredAt) {
+      const otpCreatedAt = user.otpExpiredAt.getTime() - OTP_LIFETIME
+      if (Date.now() - otpCreatedAt < COOLDOWN) { 
+        return res.status(429).json({ message: 'Please wait 2 minutes before requesting another OTP' })
+      }
     }
 
     const otp = generateOtp()
@@ -396,6 +411,54 @@ exports.getAllUsers = async (req, res, next) => {
   }
 }
 
+exports.getLoggedInUserById = async (req, res, next) => {
+  try {
+    console.log('REQ.USER:', req.user)
+    const authenticatedUser = req.user
+
+    const user = await User.findByPk(authenticatedUser.id, {
+      attributes: ['id', 'userName', 'email', 'role', 'verified', 'createdAt']
+    })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    return res.status(200).json({
+      message: 'User fetched successfully',
+      user
+    })
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
+exports.getUserByEmail = async (req, res, next) => {
+  try {
+    const { email } = req.query
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' })
+    }
+
+    const user = await User.findOne({
+      where: { email },
+      attributes: ['id', 'userName', 'email', 'role', 'verified']
+    })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    return res.status(200).json({ user })
+  } 
+  catch (error) {
+    console.error(error)
+    next(error)
+  }
+}
+
 exports.blockUser = async (req, res, next) => {
   try {
     const { userId } = req.params
@@ -408,7 +471,7 @@ exports.blockUser = async (req, res, next) => {
     if (!["block", "unblock"].includes(action)) {
       return res.status(400).json({
         message: "Invalid action. Use 'block' or 'unblock'."
-      });
+      })
     }
 
     const user = await User.findByPk(userId);

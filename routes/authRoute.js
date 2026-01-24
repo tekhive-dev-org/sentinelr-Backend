@@ -11,6 +11,7 @@ authRouter.post('/auth/reset-password', authController.resetPassword)
 authRouter.post('/auth/verify/otp', authenticate, authController.verifyOTP)
 authRouter.post('/auth/send/otp', authenticate, authController.sendOtpEmail)
 
+
 authRouter.get('/admin/verified', authenticate, authorizeAdmin, authController.getAllVerifiedUsers)
 authRouter.patch('/admin/:userId/block', authenticate, authorizeAdmin, authController.blockUser)
 authRouter.get('/admin/blocked', authenticate, authorizeAdmin, authController.getAllBlockedUsers)
@@ -20,6 +21,7 @@ authRouter.post('/admin/restore-delete', authenticate, authorizeAdmin, userContr
 authRouter.put('/user/update-profile-picture', authenticate, upload.single('profilePicture'), authController.updateProfilePicture)
 authRouter.put('/user/update-profile', authenticate, userController.updateUserProfile)
 authRouter.delete('user/soft-delete', authenticate, userController.softDeleteAccount)
+authRouter.get('/auth/logged-in-user', authenticate, authController.getLoggedInUserById)
 
 
 authRouter.post('/family/create-family', authenticate, requireParent, authController.createFamily)
@@ -31,7 +33,12 @@ authRouter.get('/devices', authenticate, authController.viewDevices)
 
 authRouter.get('/admin-dashboard', authenticate, authorizeAdmin, (req, res) => {
     res.json({ message: "Welcome Admin!" });
-});
+})
+
+// INTERNAL USE ONLY
+authRouter.get('/user-by-email', authenticate, authController.getUserByEmail) // /user-by-email?email=test@example.com
+
+
 
 
 module.exports = authRouter
