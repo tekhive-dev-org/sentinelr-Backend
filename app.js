@@ -37,7 +37,6 @@ const io = new Server(server, {
 socketHandler(io)
 global.io = io
 
-
 app.use(
   rateLimit({
     windowMs: 1 * 60 * 1000,

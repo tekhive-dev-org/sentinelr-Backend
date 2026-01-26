@@ -8,10 +8,16 @@ if (process.env.NODE_ENV === "production") {
         dialect: "postgres",
         logging: false,
         dialectOptions: {
-        ssl: {
-            require: true,
-            rejectUnauthorized: false
-        }
+            ssl: {
+                require: true,
+                rejectUnauthorized: false
+            }
+        },
+        pool: {
+            max: 10,
+            min: 0,
+            acquire: 30000,
+            idle: 10000
         }
     })
 } 
