@@ -6,7 +6,8 @@ const cors = require('cors')
 const authRoute = require('./routes/authRoute')
 const socketHandler = require('./sockets')
 const cron = require("node-cron")
-const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJobs");
+const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJobs")
+// const path = require('path')
 
 
 // Every Monday at 1am
@@ -48,5 +49,6 @@ app.use(
 app.use('/uploads', express.static('uploads'));
 app.use('/api', authRoute)
 app.get('/', (req, res) => { res.send('API is running !') })
+// console.log('Migrations path:', path.resolve(process.cwd(), 'migrations'));
 
 module.exports = server

@@ -29,7 +29,7 @@ async function connectWithRetry(retries = 5) {
 ;(async() => {
     try{
         await connectWithRetry()
-
+        await dbConnection.sync({ alter: true })
         await authController.createFirstSuperAdmin()
         server.listen(PORT, () => { console.log( `🚀 Server running on port ${PORT}` ) })
     }
