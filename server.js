@@ -14,7 +14,8 @@ async function connectWithRetry(retries = 5) {
       await dbConnection.authenticate()
       console.log('✅ Database connected')
       return
-    } catch (err) {
+    } 
+    catch (err) {
       retries--
       console.error(`❌ DB connection failed. Retries left: ${retries}`)
       console.error(err.message)
@@ -28,7 +29,6 @@ async function connectWithRetry(retries = 5) {
 ;(async() => {
     try{
         await connectWithRetry()
-        await dbConnection.sync({ alter: process.env.NODE_ENV !== 'production' })
 
         await authController.createFirstSuperAdmin()
         server.listen(PORT, () => { console.log( `🚀 Server running on port ${PORT}` ) })

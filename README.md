@@ -9,3 +9,10 @@
 * Tracking devices (GPS)  
 
 * Monitoring activity  
+
+
+---
+___
+***
+
+* generate migrations locally like so ```npx sequelize-cli migration:generate --name migration-message```
