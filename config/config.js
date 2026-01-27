@@ -11,7 +11,7 @@ module.exports = {
     logging: false
   },
   production: {
-    use_env_variable: process.env.DB_URL || 'postgresql://postgres.pteeqlppjpddnptwyuio:Arowolo245.@aws-1-eu-west-2.pooler.supabase.com:5432/postgres',
+    use_env_variable: DB_URL,
     dialect: 'postgres',
     logging: false,
     dialectOptions: {
