@@ -13,13 +13,13 @@ const Device = dbConnection.define('Device', {
     },
 
     type: {
-        type: DataTypes.ENUM('phone', 'tablet', 'laptop', 'watch'),
+        type: DataTypes.ENUM('Phone', 'Tablet', 'Laptop', 'Watch'),
         allowNull: false
     },
 
     platform: {
-        type: DataTypes.ENUM('ios', 'android'),
-        allowNull: false
+        type: DataTypes.ENUM('IOS', 'Android'),
+        allowNull: true
     },
 
     deviceModel: {
@@ -50,9 +50,9 @@ const Device = dbConnection.define('Device', {
     },
 
     status: {
-        type: DataTypes.ENUM('online', 'offline'),
+        type: DataTypes.ENUM('Online', 'Offline'),
         allowNull: false,
-        defaultValue: 'offline'
+        defaultValue: 'Offline'
     },
 
     batteryLevel: {
@@ -70,9 +70,9 @@ const Device = dbConnection.define('Device', {
     },
 
     networkType: {
-        type: DataTypes.ENUM('cellular', 'wifi', 'none'),
+        type: DataTypes.ENUM('Cellular', 'Wifi', 'None'),
         allowNull: false,
-        defaultValue: 'none'
+        defaultValue: 'None'
     },
 
     pairedAt: {

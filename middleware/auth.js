@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
-const { User } = require('../models')
+const { User, Device } = require('../models')
 const { Op } = require('sequelize')
+const AppError = require('../utils/AppError')
 
 
 const authenticate = async (req, res, next) => {
@@ -59,16 +60,63 @@ const authorizeAdmin = (req, res, next) => {
 }
 
 
+const optionalAuth = async (req, res, next) => {
+    let token;
+
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) { return next() }
+
+        token = authHeader.split(' ')[1]
+        const decodedUser = jwt.verify(token, process.env.JWT_SECRET)
+        const user = await User.findByPk(decodedUser.userId)
+
+        if (user) { req.user = user }
+    }
+    catch (error) { console.warn("OptionalAuth Ignored Token:", error.message) }
+    next()
+}
+
+
 const requireParent = (req, res, next) => {
   const user = req.user
   if (user.role !== 'Parent') {
-    return res.status(403).json({
-      message: 'Only parents are allowed to perform this action.'
-    });
+    return next(new AppError('Only parents are allowed to perform this action', 403, 'PARENT_ROLE_REQUIRED'))
   }
   next()
 }
 
 
+const deviceAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization
 
-module.exports = { authenticate, authorizeAdmin, requireParent }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next(new AppError('Device authentication required', 401, 'DEVICE_AUTH_REQUIRED'))
+    }
+
+    const token = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, process.env.DEVICE_SECRET)
+    const device = await Device.findByPk(decoded.deviceId)
+
+    if (!device) {
+      return next(new AppError('Device not found', 401, 'DEVICE_NOT_FOUND'))
+    }
+
+    if (!device.pairedAt) {
+      return next(new AppError('Device not paired', 403,'DEVICE_NOT_PAIRED'))
+    }
+
+    req.device = device
+    next()
+  } 
+  catch (err) {
+    return next(new AppError('Invalid or expired device token', 401, 'DEVICE_AUTH_INVALID'))
+  }
+}
+
+
+
+
+module.exports = { authenticate, authorizeAdmin, requireParent, optionalAuth, deviceAuth }

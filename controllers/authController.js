@@ -139,14 +139,18 @@ exports.verifyOTP = async (req, res, next) => {
   try {
     const { otp } = req.body;
 
-    if (!otp) {
-      return res.status(400).json({ message: 'OTP is required.' });
-    }
+    // if (!otp) {
+    //   return res.status(400).json({ message: 'OTP is required.' });
+    // }
 
-    const { email } = req.user;
+    // const { email } = req.user;
+    let email
+
+    if (req.user) { email = req.user.email } 
+    else { email = req.body.email }
 
     if (!email) {
-      return res.status(400).json({ message: 'Invalid token payload: missing email.' });
+      return res.status(400).json({ message: 'Missing email.' });
     }
 
     const user = await User.findOne({ where: { email } });
@@ -301,98 +305,121 @@ exports.resetPassword = async (req, res, next) => {
   }
 }
 
+// exports.sendOtpEmail = async (req, res) => {
+//   const atomic = await dbConnection.transaction()
+//   const OTP_LIFETIME = 10 * 60 * 1000
+//   const COOLDOWN = 2 * 60 * 1000
+
+//   try {
+//     const user = req.user;
+
+//     if (!user || !user.email) {
+//       return res.status(401).json({ error: "You need to register" });
+//     }
+
+//     if (user.verified) {
+//       return res.status(400).json({ message: "User already verified" })
+//     }
+
+//     if (user.otpExpiredAt) {
+//       const otpCreatedAt = user.otpExpiredAt.getTime() - OTP_LIFETIME
+//       if (Date.now() - otpCreatedAt < COOLDOWN) { 
+//         return res.status(429).json({ message: 'Please wait 2 minutes before requesting another OTP' })
+//       }
+//     }
+
+//     const otp = generateOtp()
+//     const hashedOtp = await hashOtp(otp)
+
+//     const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
+
+//     await user.update(
+//       { otp: hashedOtp, otpExpiredAt },
+//       { transaction: atomic }
+//     );
+//     await atomic.commit();
+
+//     await sendOtpEmail(user.email, otp);
+
+//     return res.status(200).json({ message: "OTP email sent" });
+//   } catch (err) {
+//     console.error("sendOtpEmailApi error:", err);
+
+//     // Rollback transaction if it exists
+//     if (atomic) await atomic.rollback();
+
+//     return res.status(500).json({ error: "Failed to send email" });
+//   }
+// }
+
 exports.sendOtpEmail = async (req, res) => {
   const atomic = await dbConnection.transaction()
   const OTP_LIFETIME = 10 * 60 * 1000
   const COOLDOWN = 2 * 60 * 1000
 
   try {
-    const user = req.user;
+    let user = null;
 
-    if (!user || !user.email) {
-      return res.status(401).json({ error: "You need to register" });
+    if (req.user) { user = req.user }
+
+    if (!user) {
+      const { email } = req.body
+
+      if (!email) {
+        return res.status(400).json({
+          error: "Authentication or email is required"
+        })
+      }
+
+      user = await User.findOne({
+        where: { email },
+        transaction: atomic
+      })
+
+      if (!user) {
+        await atomic.commit();
+        return res.status(200).json({
+          message: "If this email exists, an OTP has been sent"
+        })
+      }
     }
 
     if (user.verified) {
-      return res.status(400).json({ message: "User already verified" })
+      await atomic.commit();
+      return res.status(400).json({
+        message: "User already verified"
+      })
     }
 
     if (user.otpExpiredAt) {
       const otpCreatedAt = user.otpExpiredAt.getTime() - OTP_LIFETIME
-      if (Date.now() - otpCreatedAt < COOLDOWN) { 
-        return res.status(429).json({ message: 'Please wait 2 minutes before requesting another OTP' })
+
+      if (Date.now() - otpCreatedAt < COOLDOWN) {
+        await atomic.commit();
+        return res.status(429).json({ message: "Please wait before requesting another OTP" })
       }
     }
 
     const otp = generateOtp()
     const hashedOtp = await hashOtp(otp)
+    const otpExpiredAt = new Date(Date.now() + OTP_LIFETIME)
 
-    const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
+    await user.update( { otp: hashedOtp, otpExpiredAt }, { transaction: atomic })
+    await atomic.commit()
 
-    await user.update(
-      { otp: hashedOtp, otpExpiredAt },
-      { transaction: atomic }
-    );
-    await atomic.commit();
+    try{ await sendOtpEmail(user.email, otp) }
+    catch(emailErr){ console.error("Email failed:", emailErr) }
 
-    await sendOtpEmail(user.email, otp);
+    return res.status(200).json({ message: "OTP email sent" })
 
-    return res.status(200).json({ message: "OTP email sent" });
-  } catch (err) {
-    console.error("sendOtpEmailApi error:", err);
-
-    // Rollback transaction if it exists
-    if (atomic) await atomic.rollback();
-
-    return res.status(500).json({ error: "Failed to send email" });
+  } 
+  catch (err) {
+    if (atomic) await atomic.rollback()
+    console.error("sendOtpEmail error:", err)
+    return res.status(500).json({ error: "Failed to send OTP" })
   }
 }
 
-exports.updateProfilePicture = async (req, res) => {
-  try{
-        if(!req.file){ return res.status(400).json({ message: 'No Picture Selected For Upload' }) }
-
-        if (!req.user.verified) {
-            return res.status(403).json({
-                message: "Please verify your account before updating profile picture"
-            });
-        }
-
-        let imagePath
-
-        if (process.env.NODE_ENV === 'production') {
-          const user = await User.findByPk(req.user.id);
-          let oldPublicId = null;
-          if (user && user.profilePicture) {
-              const match = user.profilePicture.match(/profile-pictures\/(.+)\./)
-              if (match) oldPublicId = `profile-pictures/${match[1]}`;
-          }
-
-          const result = await uploadToCloud(req.file.buffer);
-          imagePath = result.secure_url
-
-          if (oldPublicId) await deleteFromCloud(oldPublicId)
-        }
-        else
-        {
-          imagePath = `../uploads/profile-pictures/${req.file.filename}`
-        }
-
-        await User.update(
-            { profilePicture: imagePath },
-            { where: { id: req.user.id } }
-        );
-
-        res.status(200).json({
-            message: "Profile picture updated successfully",
-            profilePicture: imagePath
-        })
-  }
-  catch(error){
-    console.error(error)
-    res.status(500).json({ message: "Server error" });
-  }
-}
 
 exports.getAllUsers = async (req, res, next) => {
   try {
@@ -417,7 +444,7 @@ exports.getLoggedInUserById = async (req, res, next) => {
     const authenticatedUser = req.user
 
     const user = await User.findByPk(authenticatedUser.id, {
-      attributes: ['id', 'userName', 'email', 'role', 'verified', 'createdAt']
+      attributes: ['id', 'userName', 'email', 'role', 'verified', 'phone', 'profilePicture', 'createdAt']
     })
 
     if (!user) {
@@ -533,7 +560,6 @@ exports.getAllBlockedUsers = async (req, res, next) => {
   }
 }
 
-
 exports.getAllVerifiedUsers = async (req, res, next) => {
   try {
     const { verified } = req.query
@@ -555,135 +581,23 @@ exports.getAllVerifiedUsers = async (req, res, next) => {
   }
 }
 
-exports.createFamily = async (req, res, next) => {
-  const transaction = await dbConnection.transaction()
-  try {
-    const { familyName } = req.body
-    const userId = req.user.id
+exports.restoreDeletedAccount = async (req, res) => {
+    try {
+        const { userId } = req.params
+        const user = await User.findOne({ where: { id: userId }, paranoid: false })
 
-    if (!req.user.verified) {
-            return res.status(403).json({
-                message: "Please verify your account"
-            });
+        if (!user) { return next(new AppError('User not found', 404, 'USER_NOT_FOUND')) }
+
+        if (!user.deletedAt) { return next(new AppError('User account is already active', 400, 'USER_NOT_DELETED')) }
+
+        await user.restore()
+        return res.status(200).json({ message: "Account Restored Succesfully" })
+    } 
+    catch (error) {
+        throw error
     }
-
-    if (!familyName) {
-      await transaction.rollback()
-      return res.status(400).json({ message: 'Family name is required.' })
-    }
-
-    const existing = await Family.findOne({ where: { createdBy: userId } })
-    if (existing) {
-      await transaction.rollback()
-      return res.status(400).json({ message: 'You already created a family.' })
-    }
-
-    const family = await Family.create({ familyName, createdBy: userId }, { transaction })
-    await FamilyMember.create(
-      { userId, familyId: family.id, relationship: 'Parent' },
-      { transaction }
-    )
-
-    await transaction.commit()
-    res.status(201).json({ message: 'Family created successfully.', family })
-  } catch (error) {
-    await transaction.rollback()
-    console.error(error)
-    next(error)
-  }
 }
 
-exports.addMemberToFamily = async (req, res, next) => {
-  const transaction = await dbConnection.transaction()
-  try {
-    const { familyId, userId, relationship } = req.body
-    const creatorId = req.user.id
-
-    if (!req.user.verified) {
-            return res.status(403).json({
-                message: "Please verify your account before updating your profile"
-            });
-    }
-
-    const family = await Family.findByPk(familyId)
-    if (!family) {
-      await transaction.rollback()
-      return res.status(404).json({ message: 'Family not found.' })
-    }
-
-    if (family.createdBy !== creatorId) {
-      await transaction.rollback()
-      return res.status(403).json({ message: 'You are not allowed to add members to this family.' })
-    }
-
-    const memberExists = await FamilyMember.findOne({
-      where: { userId, familyId },
-      transaction
-    })
-
-    if (memberExists) {
-      await transaction.rollback()
-      return res.status(400).json({ message: 'This user is already a family member.' })
-    }
-
-    await FamilyMember.create({ userId, familyId, relationship }, { transaction })
-    await transaction.commit()
-
-    res.status(201).json({ message: 'Member added successfully.' })
-  } catch (error) {
-    await transaction.rollback()
-    console.error(error)
-    next(error)
-  }
-}
-
-exports.viewFamilyMembers = async (req, res, next) => {
-  try {
-    const { familyId } = req.params
-
-    if (!req.user.verified) {
-            return res.status(403).json({
-                message: "Please verify your account before updating your profile"
-            });
-    }
-
-    const family = await Family.findByPk(familyId, {
-      include: [
-        {
-          model: User,
-          as: 'members',
-          attributes: ['id', 'email', 'firstName', 'lastName'],
-          through: { attributes: ['relationship'] }
-        }
-      ]
-    })
-
-    if (!family) {
-      return res.status(404).json({ message: 'Family not found.' })
-    }
-
-    res.status(200).json({ family })
-  } catch (error) {
-    console.error(error)
-    next(error)
-  }
-}
-
-exports.viewDevices = async (req, res, next) => {
-  try {
-    const userId = req.user.id
-    const devices = await Device.findAll({ where: { userId } })
-
-    if (!devices.length) {
-      return res.status(404).json({ message: 'No devices found.' })
-    }
-
-    res.status(200).json({ devices })
-  } catch (error) {
-    console.error(error)
-    next(error)
-  }
-}
 
 
 

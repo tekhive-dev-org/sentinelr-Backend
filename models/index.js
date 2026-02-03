@@ -5,6 +5,8 @@ const FamilyMember = require('./FamilyMember')
 const Device = require('./Device')
 const Location = require('./Location')
 const Subscription = require('./Subscription')
+const PairingCode = require('./PairingCode')
+const DevicePermission = require('./DevicePermission')
 
 
 User.hasMany(Device, { foreignKey: 'userId', onDelete: 'CASCADE' })
@@ -21,4 +23,11 @@ Family.belongsTo(User, { as:'creator', foreignKey: 'createdBy', onDelete: 'CASCA
 Family.belongsToMany(User, { foreignKey: 'familyId', as: 'members', through: FamilyMember, onDelete: 'CASCADE' })
 User.belongsToMany(Family, { foreignKey: 'userId', as: 'families', through: FamilyMember, onDelete: 'CASCADE' })
 
-module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription }
+Family.hasMany(PairingCode, { foreignKey: 'familyId', onDelete: 'CASCADE' });
+PairingCode.belongsTo(Family)
+
+Device.hasMany(DevicePermission, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
+DevicePermission.belongsTo(Device)
+
+
+module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, DevicePermission, PairingCode }

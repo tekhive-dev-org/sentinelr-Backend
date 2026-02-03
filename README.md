@@ -12,7 +12,6 @@
 
 
 ---
-___
-***
+
 
 * generate migrations locally like so ```npx sequelize-cli migration:generate --name migration-message```

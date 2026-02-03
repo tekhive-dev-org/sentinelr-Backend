@@ -1,9 +1,12 @@
 const express = require('express')
+const errorHandler = require('./middleware/errorHandler')
 const http = require('http')
 const rateLimit = require('express-rate-limit')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const authRoute = require('./routes/authRoute')
+const familyRoute = require('./routes/familyRoute')
+const deviceRoute = require('./routes/deviceRoute')
 const socketHandler = require('./sockets')
 const cron = require("node-cron")
 const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJobs")
@@ -47,8 +50,11 @@ app.use(
   })
 )
 app.use('/uploads', express.static('uploads'));
-app.use('/api', authRoute)
+app.use('/api', [authRoute, deviceRoute, familyRoute])
+
 app.get('/', (req, res) => { res.send('API is running !') })
 // console.log('Migrations path:', path.resolve(process.cwd(), 'migrations'));
+
+app.use(errorHandler)
 
 module.exports = server
