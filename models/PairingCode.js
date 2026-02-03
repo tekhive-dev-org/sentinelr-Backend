@@ -29,7 +29,7 @@ const PairingCode = dbConnection.define('PairingCode', {
     allowNull: true
   },
   deviceType: {
-    type: DataTypes.ENUM('Phone', 'Tablet', 'Laptop', 'Watch'),
+    type: DataTypes.ENUM('Phone', 'Tablet', 'Laptop', 'Watch', 'Unknown'),
     allowNull: false,
     defaultValue: 'Unknown'
   },
