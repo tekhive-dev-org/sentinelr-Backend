@@ -90,14 +90,14 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
 
 exports.viewFamilyMembers = catchAsync(async (req, res, next) => {
   try {
-    const { familyId } = req.params
+    const userId = req.user.id
 
     if (!req.user.verified) { throw new AppError('Please verify your account', 403, 'ACCOUNT_NOT_VERIFIED') }
 
-    const isMember = await FamilyMember.findOne({ where: { familyId, userId: req.user.id }})
+    const isMember = await FamilyMember.findOne({ where: { userId }})
     if (!isMember) { throw new AppError('Not authorized to view this family', 403,'NOT_AUTHORIZED') }
 
-    const family = await Family.findByPk(familyId, {
+    const family = await Family.findByPk(isMember.familyId, {
       include: [
         {
           model: User,

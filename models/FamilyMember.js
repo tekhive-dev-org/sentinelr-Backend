@@ -12,7 +12,7 @@ const FamilyMember = dbConnection.define('FamilyMember',{
         allowNull: false
     },
     relationship: {
-        type: DataTypes.ENUM('Parent', 'Child'),
+        type: DataTypes.ENUM('Parent', 'Member'),
         allowNull: false
     },
     status: {
