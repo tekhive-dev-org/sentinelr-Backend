@@ -14,7 +14,7 @@ cloudinary.config({
 // })
 // Uploaded: https://res.cloudinary.com/dsarn5qvg/image/upload/v1765629075/test/ddhhomaesd3xt4l6yz5a.jpg
 
-const uploadToCloud = (fileBuffer) => {
+const uploadToCloud = (fileBuffer, publicId = null) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'profile-pictures',
