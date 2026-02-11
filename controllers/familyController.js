@@ -1,7 +1,7 @@
 require('dotenv').config()
 const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
-const { dbConnection, Family, FamilyMember } = require('../models')
+const { dbConnection, Family, FamilyMember, User } = require('../models')
 
 
 exports.createFamily = catchAsync(async (req, res, next) => {
@@ -59,7 +59,6 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
 
     const family = await Family.findByPk(familyId, { transaction })
     if (!family) {
-    //   await transaction.rollback()
       throw new AppError('Family not found', 403,'FAMILY_NOT_FOUND')
     }
 
@@ -82,40 +81,63 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
     await transaction.commit()
 
     res.status(201).json({ message: 'Member added successfully.' })
-  } catch (error) {
+  } 
+  catch (error) {
     await transaction.rollback()
     throw error
   }
 })
 
-exports.viewFamilyMembers = async (req, res, next) => {
+exports.viewFamilyMembers = catchAsync(async (req, res, next) => {
   try {
     const { familyId } = req.params
 
-    if (!req.user.verified) {
-            return res.status(403).json({
-                message: "Please verify your account before updating your profile"
-            });
-    }
+    if (!req.user.verified) { throw new AppError('Please verify your account', 403, 'ACCOUNT_NOT_VERIFIED') }
+
+    const isMember = await FamilyMember.findOne({ where: { familyId, userId: req.user.id }})
+    if (!isMember) { throw new AppError('Not authorized to view this family', 403,'NOT_AUTHORIZED') }
 
     const family = await Family.findByPk(familyId, {
       include: [
         {
           model: User,
           as: 'members',
-          attributes: ['id', 'email', 'firstName', 'lastName'],
+          attributes: ['id', 'userName', 'email'],
           through: { attributes: ['relationship'] }
         }
       ]
     })
 
-    if (!family) {
-      return res.status(404).json({ message: 'Family not found.' })
-    }
+    if (!family) { return res.status(404).json({ message: 'Family not found.' }) }
 
     res.status(200).json({ family })
-  } catch (error) {
-    console.error(error)
-    next(error)
+  } 
+  catch (error) {
+    throw error
   }
-}
+})
+
+exports.createChildUser = catchAsync(async (req, res, next) => {
+  const atomic = await dbConnection.transaction()
+
+  try {
+    const parent = req.user
+    const { userName, password, confirmPassword } = req.body
+
+    if (password !== confirmPassword) { throw new AppError('Passwords do not match', 400,'PASSWORD_MISMATCH') }
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/
+    if (!passwordRegex.test(password)) { throw new AppError('Password Must Contain At Least One Uppercase Letter, One Number And One Special Character', 400,'WEAK_PASSWORD') }
+
+    if (parent.role !== 'Parent') { throw new AppError('Only parents can create child users', 403,'CANNOT_CREATE_CHILD') }
+    if (!userName || !password || !confirmPassword) { throw new AppError('All fields are required', 403,'INCOMPLETE_FIELDS')}
+
+    const childUser = await User.create({userName, password, role: 'Child', verified: true, createdBy: parent.id }, { transaction: atomic })
+
+    await atomic.commit()
+    return res.status(201).json({ message: 'Child user created successfully', user: { id: childUser.id, userName: childUser.userName, role: childUser.role }})
+  } 
+  catch (error) {
+    await atomic.rollback()
+    throw error
+  }
+})

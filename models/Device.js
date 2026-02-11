@@ -50,7 +50,7 @@ const Device = dbConnection.define('Device', {
     },
 
     status: {
-        type: DataTypes.ENUM('Online', 'Offline'),
+        type: DataTypes.ENUM('Online', 'Offline', 'Remove'),
         allowNull: false,
         defaultValue: 'Offline'
     },

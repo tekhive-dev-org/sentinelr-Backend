@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize')
 const dbConnection = require('../config/database')
 
+
 const DevicePermission = dbConnection.define('DevicePermission', {
   deviceId: {
     type: DataTypes.INTEGER,

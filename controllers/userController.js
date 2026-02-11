@@ -1,6 +1,8 @@
 const { User } = require('../models')
 const bcrypt = require("bcrypt")
 const AppError = require('../utils/AppError')
+const catchAsync = require('../utils/catchAsync')
+const { uploadToCloud, deleteFromCloud }= require('../middleware/cloudinary')
 
 
 

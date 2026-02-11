@@ -24,10 +24,10 @@ Family.belongsToMany(User, { foreignKey: 'familyId', as: 'members', through: Fam
 User.belongsToMany(Family, { foreignKey: 'userId', as: 'families', through: FamilyMember, onDelete: 'CASCADE' })
 
 Family.hasMany(PairingCode, { foreignKey: 'familyId', onDelete: 'CASCADE' });
-PairingCode.belongsTo(Family)
+PairingCode.belongsTo(Family, { foreignKey: 'familyId' })
 
 Device.hasMany(DevicePermission, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
-DevicePermission.belongsTo(Device)
+DevicePermission.belongsTo(Device, { foreignKey: 'deviceId' })
 
 
 module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, DevicePermission, PairingCode }

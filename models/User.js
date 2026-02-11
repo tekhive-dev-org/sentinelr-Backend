@@ -10,7 +10,7 @@ const User = dbConnection.define('User', {
     email: {
         type: DataTypes.STRING,
         unique: true,
-        allowNull: false,
+        allowNull: true,
         validate: { isEmail: true }
     },
     password: {
@@ -46,6 +46,10 @@ const User = dbConnection.define('User', {
         type: DataTypes.ENUM('Personal', 'Parent', 'Child', 'Admin', 'SuperAdmin'),
         defaultValue: 'Personal',
         allowNull: false
+    },
+    createdBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     },
     deletedAt: {
         type: DataTypes.DATE

@@ -12,6 +12,11 @@ const Family = dbConnection.define('Family',{
         allowNull: false,
         unique: true
     },
+    maxMembers:{
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 2
+    },
     deletedAt: {
         type: DataTypes.DATE
     }

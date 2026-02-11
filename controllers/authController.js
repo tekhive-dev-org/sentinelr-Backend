@@ -2,11 +2,12 @@ require('dotenv').config()
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const bcrypt = require('bcrypt')
-const { User, Family, FamilyMember, Device, dbConnection } = require('../models')
+const { User, Family, FamilyMember, dbConnection } = require('../models')
+const catchAsync = require('../utils/catchAsync')
+const AppError = require('../utils/AppError')
 const { Op } = require('sequelize')
 const axios = require("axios")
 const { sendOtpEmail } = require("../services/emailService");
-const { uploadToCloud, deleteFromCloud }= require('../middleware/cloudinary')
 
 
 
@@ -65,31 +66,28 @@ exports.login = async(req, res, next) => {
 }
 
 
-exports.register = async (req, res, next) => {
+exports.register = catchAsync(async (req, res, next) => {
   const atomic = await dbConnection.transaction()
   try {
     const { userName, email, password, confirmPassword, role } = req.body
 
     if (!userName || !email || !password || !confirmPassword) {
-      return res.status(400).json({ message: 'All fields are required.' })
+      throw new AppError('All fields are required', 400)
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Passwords do not match.' })
+      throw new AppError('Passwords do not match', 400)
     }
 
     const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/
     if (!passwordRegex.test(password)) {
-      return res.status(400).json({
-        message:
-          'Password Must Contain At Least One Uppercase Letter, One Number And One Special Character.'
-      })
+       throw new AppError('Password Must Contain At Least One Uppercase Letter, One Number And One Special Character', 400)
     }
 
     const existingUser = await User.findOne({ where: { email }, transaction: atomic })
     if (existingUser) {
       await atomic.rollback()
-      return res.status(409).json({ message: 'Email is already registered.' })
+      throw new AppError('Email is already registered', 409)
     }
 
     const otp = generateOtp()
@@ -105,6 +103,26 @@ exports.register = async (req, res, next) => {
       verified: false,
       role: role || 'Personal'
     }, { transaction: atomic })
+
+    const existing = await Family.findOne({ where: { createdBy: newUser.id }, transaction: atomic })
+    if (existing) {
+      await atomic.rollback()
+      throw new AppError('You already created a family', 400,'FAMILY_ALREADY_EXISTS')
+    }
+
+    if (newUser.role == 'Parent') { 
+        const family = await Family.create(
+                    { familyName: `${newUser.userName}'s Family`, createdBy: newUser.id, maxMembers: 2},
+                    { transaction: atomic })
+
+                      await FamilyMember.create(
+                    { userId: newUser.id, familyId: family.id, relationship: 'Parent', status: 'Active' },
+                    { transaction: atomic })
+
+        // throw new AppError('Only parents can create families', 403,'PARENT_ROLE_REQUIRED')
+    }
+    else{ throw new AppError('Only parents can create families', 403,'PARENT_ROLE_REQUIRED') }
+
 
     const regToken = jwt.sign(
       { userId: newUser.id, email: newUser.email },
@@ -129,10 +147,9 @@ exports.register = async (req, res, next) => {
   } 
   catch (error) {
     await atomic.rollback()
-    console.error(error)
-    next(error)
+    throw error
   }
-}
+})
 
 
 exports.verifyOTP = async (req, res, next) => {
