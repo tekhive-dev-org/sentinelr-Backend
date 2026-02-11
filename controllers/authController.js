@@ -116,7 +116,7 @@ exports.register = catchAsync(async (req, res, next) => {
                     { transaction: atomic })
 
                       await FamilyMember.create(
-                    { userId: newUser.id, familyId: family.id, relationship: 'Parent', status: 'Active' },
+                    { userId: newUser.id, familyId: family.id, relationship: 'Parent', status: 'Not_Paired' },
                     { transaction: atomic })
 
         // throw new AppError('Only parents can create families', 403,'PARENT_ROLE_REQUIRED')

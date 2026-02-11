@@ -31,8 +31,8 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
       const family = await Family.findOne({ where: { createdBy: parentId }, transaction: atomic })
       if (!family) { throw new AppError('No family found', 403, 'FAMILY_NOT_FOUND') }
       
-      const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: childUserId, relationship: 'Child' }, atomic })
-      if (!familyMember) { throw new AppError('Child not found in your family', 403, 'CHILD_NOT_IN_FAMILY')}
+      const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: childUserId }, atomic })
+      if (!familyMember) { throw new AppError('Not a member of the family', 403, 'NOT_IN_FAMILY')}
 
       if (familyMember.status === 'Active') { throw new AppError('Child already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
 
