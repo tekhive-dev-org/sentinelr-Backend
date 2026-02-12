@@ -108,8 +108,7 @@ exports.updateProfilePicture = async (req, res) => {
             });
         }
 
-        let imagePath1
-        let imagePath2
+        let imagePath
 
         if (process.env.NODE_ENV === 'production') {
           const user = await User.findByPk(req.user.id);
@@ -120,10 +119,7 @@ exports.updateProfilePicture = async (req, res) => {
           }
 
           const result = await uploadToCloud(req.file.buffer);
-          imagePath1 = result.secure_url
-          imagePath2 = result
-          console.log("image Path 1", imagePath1)
-          console.log("image Path 2", imagePath2)
+          imagePath = result
 
           if (oldPublicId) await deleteFromCloud(oldPublicId)
         }
