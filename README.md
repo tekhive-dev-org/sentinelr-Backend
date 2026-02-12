@@ -13,5 +13,21 @@
 
 ---
 
+**Some Implementated Enterprise-Grade Security  :**
+
+- [CHECK constraints for DB-Level Protection (e.g: password_required_for_non_child)]()  
+
+- [Middlewares]()
+
+- [Tokens: Auth-tokens, Device-tokens, JWT]()
+
+- [2 Factor Authentication]()
+
+- [Roles & Permissions]()
+
+- [Model-Level Hooks (e.g: beforeCreate_&_beforeUpdate_hooks)]()
+
+---
+
 
 * generate migrations locally like so ```npx sequelize-cli migration:generate --name migration-message```

@@ -46,7 +46,7 @@ exports.createFamily = catchAsync(async (req, res, next) => {
 exports.addMemberToFamily = catchAsync(async (req, res, next) => {
   const transaction = await dbConnection.transaction()
   try {
-    const { familyId, userId, relationship } = req.body
+    const { familyId, userId } = req.body
     const parentId = req.user.id
 
     if (!req.user.verified) {
@@ -77,7 +77,7 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
       throw new AppError('User is already a family member', 400,'FAMILY_MEMBER_EXISTS')
     }
 
-    await FamilyMember.create({ userId, familyId, relationship, status: 'Not_Paired' }, { transaction })
+    await FamilyMember.create({ userId, familyId, relationship: 'Member', status: 'Not_Paired' }, { transaction })
     await transaction.commit()
 
     res.status(201).json({ message: 'Member added successfully.' })
@@ -122,14 +122,10 @@ exports.createChildUser = catchAsync(async (req, res, next) => {
 
   try {
     const parent = req.user
-    const { userName, password, confirmPassword } = req.body
-
-    if (password !== confirmPassword) { throw new AppError('Passwords do not match', 400,'PASSWORD_MISMATCH') }
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/
-    if (!passwordRegex.test(password)) { throw new AppError('Password Must Contain At Least One Uppercase Letter, One Number And One Special Character', 400,'WEAK_PASSWORD') }
+    const { userName, email, phone } = req.body
 
     if (parent.role !== 'Parent') { throw new AppError('Only parents can create child users', 403,'CANNOT_CREATE_CHILD') }
-    if (!userName || !password || !confirmPassword) { throw new AppError('All fields are required', 403,'INCOMPLETE_FIELDS')}
+    if (!userName || !email) { throw new AppError('All fields are required', 403,'INCOMPLETE_FIELDS')}
 
     const childUser = await User.create({userName, password, role: 'Child', verified: true, createdBy: parent.id }, { transaction: atomic })
 

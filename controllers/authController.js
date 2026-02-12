@@ -48,13 +48,15 @@ exports.login = async(req, res, next) => {
 
         if (!user.verified) { return res.status(403).json({ message: 'Please verify your email before logging in' })}
 
+        if (user.role === 'Member') { return res.status(403).json({ message: 'Non-parent accounts cannot log in directly' })}
+
         const match = await bcrypt.compare(password, user.password)
         if(!match){ return res.status(401).json({ message: "Invalid Password !" }) }
 
         const token = jwt.sign(
             { userId: user.id, userRole: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '1d' }
         )
 
         res.status(200).json({ message: 'Login Successfull.', token })
