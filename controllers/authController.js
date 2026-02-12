@@ -47,8 +47,8 @@ exports.login = async(req, res, next) => {
         if(!user){ return res.status(404).json({ message: "User Not Found !" }) }
 
         if (!user.verified) { return res.status(403).json({ message: 'Please verify your email before logging in' })}
-
         if (user.role === 'Member') { return res.status(403).json({ message: 'Non-parent accounts cannot log in directly' })}
+        if (!user.isLoginEnabled) { return res.status(403).json({ message: 'This account cannot log in directly' })}
 
         const match = await bcrypt.compare(password, user.password)
         if(!match){ return res.status(401).json({ message: "Invalid Password !" }) }

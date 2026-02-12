@@ -43,9 +43,14 @@ const User = dbConnection.define('User', {
         allowNull: true
     },
     role: {
-        type: DataTypes.ENUM('Personal', 'Parent', 'Child', 'Admin', 'SuperAdmin'),
+        type: DataTypes.ENUM('Personal', 'Parent', 'Member', 'Admin', 'SuperAdmin'),
         defaultValue: 'Personal',
         allowNull: false
+    },
+    isLoginEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
     },
     createdBy: {
         type: DataTypes.INTEGER,

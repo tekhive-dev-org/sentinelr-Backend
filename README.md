@@ -15,6 +15,8 @@
 
 **Some Implementated Enterprise-Grade Security  :**
 
+- [ACID Transactions (atomicity, consistency, isolation, durability)]() 
+
 - [CHECK constraints for DB-Level Protection (e.g: password_required_for_non_child)]()  
 
 - [Middlewares]()
@@ -25,7 +27,7 @@
 
 - [Roles & Permissions]()
 
-- [Model-Level Hooks (e.g: beforeCreate_&_beforeUpdate_hooks)]()
+- [Model-Level Hooks And Flags (e.g: beforeCreate_&_beforeUpdate_hooks, isLoginEnabled_flag)]()
 
 ---
 

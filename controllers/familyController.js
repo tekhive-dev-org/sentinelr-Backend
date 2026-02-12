@@ -124,13 +124,16 @@ exports.createChildUser = catchAsync(async (req, res, next) => {
     const parent = req.user
     const { userName, email, phone } = req.body
 
-    if (parent.role !== 'Parent') { throw new AppError('Only parents can create child users', 403,'CANNOT_CREATE_CHILD') }
+    if (parent.role !== 'Parent') { throw new AppError('Only parents can create members', 403,'CANNOT_CREATE_MEMBER') }
     if (!userName || !email) { throw new AppError('All fields are required', 403,'INCOMPLETE_FIELDS')}
+    
+    const existingUser = await User.findOne({ where: { email }, transaction: atomic })
+    if (existingUser) { throw new AppError('Email already in use', 409, 'EMAIL_EXISTS') }
 
-    const childUser = await User.create({userName, password, role: 'Child', verified: true, createdBy: parent.id }, { transaction: atomic })
+    const memberUser = await User.create({userName, email, phone: phone || null, role: 'Member', verified: true, isLoginEnabled: false, createdBy: parent.id }, { transaction: atomic })
 
     await atomic.commit()
-    return res.status(201).json({ message: 'Child user created successfully', user: { id: childUser.id, userName: childUser.userName, role: childUser.role }})
+    return res.status(201).json({ message: 'Member created successfully', user: { id: memberUser.id, userName: memberUser.userName, email: memberUser.email, phone: memberUser.phone, role: memberUser.role }})
   } 
   catch (error) {
     await atomic.rollback()
