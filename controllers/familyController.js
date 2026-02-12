@@ -102,7 +102,7 @@ exports.viewFamilyMembers = catchAsync(async (req, res, next) => {
         {
           model: User,
           as: 'members',
-          attributes: ['id', 'userName', 'email'],
+          attributes: ['id', 'userName', 'email', 'phone'],
           through: { attributes: ['relationship'] }
         }
       ]
