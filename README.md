@@ -27,6 +27,8 @@
 
 - [Roles & Permissions]()
 
+- [Race Condition Locks & Asynchrony (eg: ```await PairingCode.function({ ... }, ..., lock: transaction.LOCK.UPDATE``` }))]()
+
 - [Model-Level Hooks And Flags (e.g: beforeCreate_&_beforeUpdate_hooks, isLoginEnabled_flag)]()
 
 ---

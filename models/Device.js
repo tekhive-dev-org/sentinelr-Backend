@@ -55,6 +55,12 @@ const Device = dbConnection.define('Device', {
         defaultValue: 'Offline'
     },
 
+    pairStatus: {
+        type: DataTypes.ENUM('Pending', 'Paired', 'Expired'),
+        allowNull: false,
+        defaultValue: 'Pending'
+    },
+
     batteryLevel: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -94,7 +100,7 @@ const Device = dbConnection.define('Device', {
     timestamps: true,
 
     indexes: [
-        { fields: ['userId'] },
+        {  unique: true, fields: ['userId'], where: { deletedAt: null } },
         { fields: ['status'] },
         { fields: ['lastSeen'] }
     ]

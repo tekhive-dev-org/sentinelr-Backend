@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken')
 const { DevicePermission, dbConnection, Family, FamilyMember, PairingCode, Device } = require('../models')
 
 function createPairingCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'
   const part = () =>
     Array.from({ length: 4 }, () =>
       chars[Math.floor(Math.random() * chars.length)]
@@ -19,24 +19,25 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
   const atomic = await dbConnection.transaction()
 
   try{
-      const { childUserId, deviceName, deviceType } = req.body
+      const { memberUserId, deviceName, deviceType } = req.body
       const parentId = req.user.id
-
-      // permissions = ['camera', 'location', 'microphone']
 
       if (req.user.role !== 'Parent') {
         throw new AppError('Only parents can generate pairing codes', 403, 'PARENT_ROLE_REQUIRED')
       }
 
-      const family = await Family.findOne({ where: { createdBy: parentId }, transaction: atomic })
-      if (!family) { throw new AppError('No family found', 403, 'FAMILY_NOT_FOUND') }
+      const family = await Family.findOne({ where: { createdBy: parentId }, atomic })
+      if (!family) { throw new AppError('No family found', 404, 'FAMILY_NOT_FOUND') }
       
-      const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: childUserId }, atomic })
+      const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: memberUserId }, atomic })
       if (!familyMember) { throw new AppError('Not a member of the family', 403, 'NOT_IN_FAMILY')}
 
-      if (familyMember.status === 'Active') { throw new AppError('Child already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
+      // A FLAG IN FAMILY-MEMBER SHOULDNT BE SOURCE OF TRUTH TO KNOW A PAIRED DEVICE
+      // if (familyMember.status === 'Active') { throw new AppError('Child already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
+      const alreadyPaired = await Device.findOne({ where: { userId: memberUserId, pairStatus: 'Paired'}, atomic })
+      if (alreadyPaired) { throw new AppError('Member already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
 
-      await PairingCode.update({ status: 'Expired' }, { where: { assignedUserId: childUserId, status: 'Pending'}, atomic })
+      await PairingCode.update({ status: 'Expired' }, { where: { assignedUserId: memberUserId, status: 'Pending'}, atomic })
 
       const code = createPairingCode()
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
@@ -44,7 +45,7 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
       await PairingCode.create({
         code,
         familyId: family.id,
-        assignedUserId: childUserId,
+        assignedUserId: memberUserId,
         deviceName,
         deviceType,
         expiresAt
@@ -72,7 +73,7 @@ exports.pairDevice = catchAsync(async (req, res) => {
   const transaction = await dbConnection.transaction()
 
   try{
-    const pairingCode = await PairingCode.findOne({ where: { code, status: 'Pending' }, transaction, lock: transaction.LOCK.UPDATE })
+    const pairingCode = await PairingCode.findOne({ where: { code, status: 'Pending' }, lock: transaction.LOCK.UPDATE, transaction })
 
     if (!pairingCode){
       await transaction.rollback()
@@ -81,26 +82,28 @@ exports.pairDevice = catchAsync(async (req, res) => {
 
     if (pairingCode.expiresAt < new Date()) {
       await pairingCode.update({ status: 'Expired' }, { transaction })
-      await transaction.commit()
       throw new AppError('Pairing Code Expired', 400, 'PAIRING_CODE_INVALID')
     }
+
+        const alreadyPaired = await Device.findOne({ where: { userId: pairingCode.assignedUserId, pairStatus: 'Paired' }, transaction, lock: transaction.LOCK.UPDATE })
+    if (alreadyPaired) { throw new AppError('Device already paired for this user', 400, 'DEVICE_ALREADY_PAIRED') }
 
     const device = await Device.create({
       deviceName: pairingCode.deviceName,
       userId: pairingCode.assignedUserId,
       type: pairingCode.deviceType,
       status: 'Offline',
+      pairStatus: 'Paired',
       pairedAt: new Date()
     }, { transaction })
 
     await pairingCode.update({ status: 'Paired', deviceId: device.id, usedAt: new Date() }, { transaction })
-    
-    // await DevicePermission.update(             await DevicePermission.bulkCreate([], { transaction })
-    //   { granted: true },
-    //   { where: { deviceId: device.id } }
-    // )
-    const [updatedCount] = await FamilyMember.update({ status: 'Active' }, { where: { familyId: pairingCode.familyId, userId: pairingCode.assignedUserId }, transaction })
-    if (updatedCount === 0) { throw new AppError('Family member not found', 404) }
+
+    //DONT CHANGE FAMILY-MEMBER TO ACTIVE YET
+    // const [updatedCount] = await FamilyMember.update({ status: 'Active' }, { where: { familyId: pairingCode.familyId, userId: pairingCode.assignedUserId }, transaction })
+    // if (updatedCount === 0) { throw new AppError('Family member not found', 404) }
+    // await transaction.commit()
+
     await transaction.commit()
 
     const deviceToken = jwt.sign({ deviceId: device.id }, process.env.DEVICE_SECRET, { expiresIn: '365d' })

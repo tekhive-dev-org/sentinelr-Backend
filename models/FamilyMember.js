@@ -15,11 +15,11 @@ const FamilyMember = dbConnection.define('FamilyMember',{
         type: DataTypes.ENUM('Parent', 'Member'),
         allowNull: false
     },
-    status: {
-        type: DataTypes.ENUM('Not_Paired', 'Active', 'Paused'),
-        allowNull: false,
-        defaultValue: 'Not_Paired'
-    },
+    // status: {
+    //     type: DataTypes.ENUM('Not_Paired', 'Active', 'Paused'),
+    //     allowNull: false,
+    //     defaultValue: 'Not_Paired'
+    // },
     deletedAt: {
         type: DataTypes.DATE
     }
