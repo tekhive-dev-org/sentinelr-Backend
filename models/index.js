@@ -29,5 +29,9 @@ PairingCode.belongsTo(Family, { foreignKey: 'familyId' })
 Device.hasMany(DevicePermission, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
 DevicePermission.belongsTo(Device, { foreignKey: 'deviceId' })
 
+PairingCode.belongsTo(Device, { foreignKey: 'deviceId', onDelete: 'CASCADE' })
+Device.hasOne(PairingCode, { foreignKey: 'deviceId' })
+
+
 
 module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, DevicePermission, PairingCode }

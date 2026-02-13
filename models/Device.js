@@ -27,6 +27,11 @@ const Device = dbConnection.define('Device', {
         allowNull: true
     },
 
+    brand: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+
     osVersion: {
         type: DataTypes.STRING,
         allowNull: true
@@ -79,6 +84,26 @@ const Device = dbConnection.define('Device', {
         type: DataTypes.ENUM('Cellular', 'Wifi', 'None'),
         allowNull: false,
         defaultValue: 'None'
+    },
+
+    lastLatitude: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+    },
+
+    lastLongitude: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+    },
+
+    locationAccuracy: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+    },
+
+    locationTimestamp: {
+        type: DataTypes.DATE,
+        allowNull: true
     },
 
     pairedAt: {

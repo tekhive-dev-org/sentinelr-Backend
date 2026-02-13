@@ -31,7 +31,7 @@ exports.createFamily = catchAsync(async (req, res, next) => {
 
     const family = await Family.create({ familyName, createdBy: userId }, { transaction })
     await FamilyMember.create(
-      { userId, familyId: family.id, relationship: 'Parent', status: 'Active' },
+      { userId, familyId: family.id, relationship: 'Parent' },
       { transaction }
     )
 

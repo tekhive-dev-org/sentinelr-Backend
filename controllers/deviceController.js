@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
 const QRCode = require('qrcode')
 const jwt = require('jsonwebtoken')
-const { DevicePermission, dbConnection, Family, FamilyMember, PairingCode, Device } = require('../models')
+const { User, dbConnection, Family, FamilyMember, PairingCode, Device } = require('../models')
 
 function createPairingCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'
@@ -32,8 +32,6 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
       const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: memberUserId }, atomic })
       if (!familyMember) { throw new AppError('Not a member of the family', 403, 'NOT_IN_FAMILY')}
 
-      // A FLAG IN FAMILY-MEMBER SHOULDNT BE SOURCE OF TRUTH TO KNOW A PAIRED DEVICE
-      // if (familyMember.status === 'Active') { throw new AppError('Child already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
       const alreadyPaired = await Device.findOne({ where: { userId: memberUserId, pairStatus: 'Paired'}, atomic })
       if (alreadyPaired) { throw new AppError('Member already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
 
@@ -98,12 +96,6 @@ exports.pairDevice = catchAsync(async (req, res) => {
     }, { transaction })
 
     await pairingCode.update({ status: 'Paired', deviceId: device.id, usedAt: new Date() }, { transaction })
-
-    //DONT CHANGE FAMILY-MEMBER TO ACTIVE YET
-    // const [updatedCount] = await FamilyMember.update({ status: 'Active' }, { where: { familyId: pairingCode.familyId, userId: pairingCode.assignedUserId }, transaction })
-    // if (updatedCount === 0) { throw new AppError('Family member not found', 404) }
-    // await transaction.commit()
-
     await transaction.commit()
 
     const deviceToken = jwt.sign({ deviceId: device.id }, process.env.DEVICE_SECRET, { expiresIn: '365d' })
@@ -137,102 +129,387 @@ exports.viewDevices = async (req, res, next) => {
   }
 }
 
-exports.checkPairingCodeStatus = catchAsync(async (req, res) => {
-  const { code } = req.params
-  const pairingCode = await PairingCode.findOne({ where: { code } })
+// exports.checkPairingCodeStatus = catchAsync(async (req, res) => {
+//   const { code } = req.params
+//   const pairingCode = await PairingCode.findOne({ where: { code } })
 
-  if (!pairingCode) { return res.status(404).json({ valid: false, status: 'Invalid' }) }
-  if (pairingCode.status === 'Pending' && pairingCode.expiresAt < new Date()) { await pairingCode.update({ status: 'Expired' }) }
+//   if (!pairingCode) { return res.status(404).json({ valid: false, status: 'Invalid' }) }
+//   if (pairingCode.status === 'Pending' && pairingCode.expiresAt < new Date()) { await pairingCode.update({ status: 'Expired' }) }
 
-  return res.status(200).json({
-    valid: pairingCode.status === 'Pending',
-    status: pairingCode.status,
-    expiresAt: pairingCode.expiresAt,
-    deviceName: pairingCode.deviceName,
-    deviceType: pairingCode.deviceType
-  })
-})
+//   return res.status(200).json({
+//     valid: pairingCode.status === 'Pending',
+//     status: pairingCode.status,
+//     expiresAt: pairingCode.expiresAt,
+//     deviceName: pairingCode.deviceName,
+//     deviceType: pairingCode.deviceType
+//   })
+// })
 
-exports.listDevices = catchAsync(async (req, res) => {
-  const user = req.user
-  let where = {}
+exports.getPairingCodeStatus = catchAsync(async (req, res) => {
+  let { code } = req.params
+  code = code.toUpperCase()
 
-  if (user.role === 'Child') { where.userId = user.id }
-  if (user.role === 'Parent') {
-    const family = await Family.findOne({ where: { createdBy: user.id } })
+  if (!code) { throw new AppError('Pairing code is required', 400) }
 
-    if (!family) { throw new AppError('Family not found', 404) }
+  const pairingCode = await PairingCode.findOne({ where: { code }, include: [ { model: Device, attributes: ['id',     
+                                                        'deviceName', 'type', 'status', 'pairStatus'] } ] })
 
-    const members = await FamilyMember.findAll({ where: { familyId: family.id, relationship: 'Child', status: 'Active'}, attributes: ['userId'] })
-    const childIds = members.map(m => m.userId)
+  if (!pairingCode) { throw new AppError('Invalid pairing code', 404) }
+  const now = new Date()
 
-    where.userId = childIds
+  if (pairingCode.expiresAt < now && pairingCode.status === 'Pending') {
+    await pairingCode.update({ status: 'Expired' })
   }
 
-  const devices = await Device.findAll({ 
-    where,
-    attributes: ['deviceName', 'type', 'status', 'pairedAt', 'lastSeen'], 
-    order: [['createdAt', 'DESC']]
-  })
+  if (pairingCode.status === 'Expired') {
+    return res.status(200).json({ success: true, pairStatus: 'expired' }) 
+  }
 
-  res.status(200).json({ success: true, count: devices.length, devices })
+  if (pairingCode.status === 'Paired' && pairingCode.Device) { return res.status(200).json({
+      success: true, pairStatus: 'paired',
+      device: {
+        id: pairingCode.Device.id,
+        name: pairingCode.Device.deviceName,
+        type: pairingCode.Device.type,
+        status: pairingCode.Device.status?.toLowerCase()
+      } })
+  }
+  const expiresInSeconds = Math.max(0,Math.floor((pairingCode.expiresAt - now) / 1000))
+
+  return res.status(200).json({ success: true, pairStatus: 'pending', expiresInSeconds })
 })
 
-exports.getDevice = catchAsync(async (req, res) => {
-  const { id } = req.params
-  const user = req.user
 
-  const device = await Device.findByPk(id)
+// exports.listDevices = catchAsync(async (req, res) => {
+//   const user = req.user
+//   let where = {}
+
+//   if (user.role === 'Child') { where.userId = user.id }
+//   if (user.role === 'Parent') {
+//     const family = await Family.findOne({ where: { createdBy: user.id } })
+
+//     if (!family) { throw new AppError('Family not found', 404) }
+
+//     const members = await FamilyMember.findAll({ where: { familyId: family.id, relationship: 'Child', status: 'Active'}, attributes: ['userId'] })
+//     const childIds = members.map(m => m.userId)
+
+//     where.userId = childIds
+//   }
+
+//   const devices = await Device.findAll({ 
+//     where,
+//     attributes: ['deviceName', 'type', 'status', 'pairedAt', 'lastSeen'], 
+//     order: [['createdAt', 'DESC']]
+//   })
+
+//   res.status(200).json({ success: true, count: devices.length, devices })
+// })
+
+exports.getAllDevices = catchAsync(async (req, res) => {
+  const { pairStatus = 'all', limit = 50, offset = 0 } = req.query
+
+  const parsedLimit = Math.min(parseInt(limit) || 50, 100)
+  const parsedOffset = parseInt(offset) || 0
+  const where = {}
+
+  if (pairStatus !== 'all') { where.pairStatus = pairStatus.charAt(0).toUpperCase() + pairStatus.slice(1) }
+
+  const { rows, count } = await Device.findAndCountAll({ where, limit: parsedLimit, offset: parsedOffset, order: [['createdAt', 'DESC']],
+    attributes: [ 'id', 'deviceName', 'type', 'deviceModel', 'platform', 'status', 'pairStatus', 'batteryLevel', 'isCharging', 'lastSeen', 'lastLatitude', 'lastLongitude'],
+    include: [ { model: User, attributes: ['id', 'userName'] } ] })
+
+  const devices = rows.map(device => ({
+    id: device.id,
+    name: device.deviceName,
+    type: device.type,
+    deviceModel: device.deviceModel,
+    platform: device.platform,
+    status: device.status?.toLowerCase(),
+    pairStatus: device.pairStatus?.toLowerCase(),
+    batteryLevel: device.batteryLevel,
+    isCharging: device.isCharging,
+    lastSeen: device.lastSeen,
+    lastLocation: device.lastLatitude && device.lastLongitude ? { latitude: device.lastLatitude, longitude: device.lastLongitude } : null,
+    assignedUser: device.User ? { id: device.User.id, name: device.User.userName } : null
+  }))
+
+  res.status(200).json({ success: true, devices, total: count, limit: parsedLimit, offset: parsedOffset })
+})
+
+
+exports.getFamilyDevices = catchAsync(async (req, res) => {
+  const { pairStatus = 'all', limit = 50, offset = 0 } = req.query
+  const parentId = req.user.id
+
+  const parsedLimit = Math.min(parseInt(limit) || 50, 100)
+  const parsedOffset = parseInt(offset) || 0
+
+  const family = await Family.findOne({
+    where: { createdBy: parentId }
+  })
+
+  if (!family) {
+    throw new AppError('Family not found', 404)
+  }
+
+  const members = await FamilyMember.findAll({
+    where: { familyId: family.id },
+    attributes: ['userId']
+  })
+
+  const memberUserIds = members.map(m => m.userId)
+
+  const where = {
+    userId: memberUserIds
+  }
+
+  if (pairStatus !== 'all') {
+    where.pairStatus =
+      pairStatus.charAt(0).toUpperCase() + pairStatus.slice(1)
+  }
+
+  const { rows, count } = await Device.findAndCountAll({
+    where,
+    limit: parsedLimit,
+    offset: parsedOffset,
+    order: [['createdAt', 'DESC']],
+    attributes: [
+      'id',
+      'deviceName',
+      'type',
+      'deviceModel',
+      'platform',
+      'status',
+      'pairStatus',
+      'batteryLevel',
+      'isCharging',
+      'lastSeen',
+      'lastLatitude',
+      'lastLongitude'
+    ],
+    include: [
+      {
+        model: User,
+        attributes: ['id', 'userName']
+      }
+    ]
+  })
+
+  const devices = rows.map(device => ({
+    id: device.id,
+    name: device.deviceName,
+    type: device.type,
+    deviceModel: device.deviceModel,
+    platform: device.platform,
+    status: device.status?.toLowerCase(),
+    pairStatus: device.pairStatus?.toLowerCase(),
+    batteryLevel: device.batteryLevel,
+    isCharging: device.isCharging,
+    lastSeen: device.lastSeen,
+    lastLocation:
+      device.lastLatitude && device.lastLongitude
+        ? {
+            latitude: device.lastLatitude,
+            longitude: device.lastLongitude
+          }
+        : null,
+    assignedUser: device.User
+      ? {
+          id: device.User.id,
+          name: device.User.userName
+        }
+      : null
+  }))
+
+  res.status(200).json({
+    success: true,
+    devices,
+    total: count,
+    limit: parsedLimit,
+    offset: parsedOffset
+  })
+})
+
+
+exports.getSingleDevice = catchAsync(async (req, res) => {
+  const { deviceId } = req.params
+
+  const device = await Device.findOne({
+    where: { id: deviceId },
+    attributes: ['id', 'deviceName', 'type', 'deviceType', 'platform', 'deviceModel', 'brand', 'osVersion', 'appVersion', 'status', 'batteryPercentage', 'isCharging', 'lastSeen', 'lastLatitude', 'lastLongitude', 'locationAccuracy', 'locationTimestamp', 'pairedAt'
+    ],
+    include: [ { model: User, attributes: ['id', 'name'] } ]})
 
   if (!device) { throw new AppError('Device not found', 404) }
-  
-  if (user.role === 'Child') {
-    if (device.userId !== user.id) { throw new AppError('Access denied', 403) }
+
+  const formattedDevice = {
+    id: device.id,
+    name: device.deviceName,
+    type: device.type,
+    deviceType: device.deviceType,
+    platform: device.platform,
+    model: device.model,
+    brand: device.brand,
+    osVersion: device.osVersion,
+    appVersion: device.appVersion,
+    status: device.status?.toLowerCase(),
+    batteryPercentage: device.batteryPercentage,
+    isCharging: device.isCharging,
+    lastSeen: device.lastSeen,
+    lastLocation:
+      device.lastLatitude !== null &&
+      device.lastLongitude !== null
+        ? {
+            latitude: device.lastLatitude,
+            longitude: device.lastLongitude,
+            accuracy: device.locationAccuracy,
+            timestamp: device.locationTimestamp
+          }
+        : null,
+    assignedUser: device.User ? { id: device.User.id, name: device.User.userName } : null,
+    pairedAt: device.pairedAt
   }
 
-  if (user.role === 'Parent') {
-    const family = await Family.findOne({ where: { createdBy: user.id } })
-    const member = await FamilyMember.findOne({ where: { familyId: family.id, userId: device.userId }})
-    if (!member) { throw new AppError('Access denied', 403)}
-  }
-
-  res.status(200).json({ success: true, device })
+  res.status(200).json({ success: true, device: formattedDevice })
 })
 
-exports.removeDevice = catchAsync(async (req, res) => {
-  const { id } = req.params
-  const user = req.user
+exports.updateDevice = catchAsync(async (req, res) => {
+  const { deviceId } = req.params
+  const { name, assignedUserId } = req.body
+
   const transaction = await dbConnection.transaction()
 
   try {
-    const device = await Device.findByPk(id, { transaction })
+    const device = await Device.findOne({
+      where: { id: deviceId },
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    })
 
-    if (!device) { throw new AppError('Device not found', 404) }
-
-    if (user.role === 'Child' && device.userId !== user.id) { throw new AppError('Access denied', 403) }
-
-    if (user.role === 'Parent') {
-      const family = await Family.findOne({ where: { createdBy: user.id }, transaction })
-      const member = await FamilyMember.findOne({ where: { familyId: family.id, userId: device.userId }, transaction })
-
-      if (!member) { throw new AppError('Access denied', 403) }
-
-      await member.update({ status: 'Inactive' }, { transaction })
+    if (!device) {
+      throw new AppError('Device not found', 404)
     }
 
-    await device.update({ status: 'Removed', deletedAt: new Date() }, { transaction })
-    await PairingCode.update({ deviceId: null }, { where: { deviceId: device.id }, transaction })
+    // ✅ Update Name
+    if (name) {
+      device.deviceName = name
+    }
+
+    // ✅ Reassign Device
+    if (assignedUserId) {
+
+      // Check user exists
+      const user = await User.findByPk(assignedUserId, { transaction })
+      if (!user) {
+        throw new AppError('Assigned user not found', 404)
+      }
+
+      // Enforce single active device per user
+      const existingDevice = await Device.findOne({
+        where: {
+          userId: assignedUserId,
+          pairStatus: 'Paired'
+        },
+        transaction
+      })
+
+      if (existingDevice && existingDevice.id !== device.id) {
+        throw new AppError(
+          'This user already has a paired device',
+          400
+        )
+      }
+
+      device.userId = assignedUserId
+    }
+
+    await device.save({ transaction })
+
     await transaction.commit()
 
-    res.status(200).json({ success: true, message: 'Device unpaired successfully' })
-  } 
-  catch (err) {
-    if (!transaction.finished) { await transaction.rollback() }
+    res.status(200).json({
+      success: true,
+      device: {
+        id: device.id,
+        name: device.deviceName,
+        assignedUserId: device.userId
+      }
+    })
+
+  } catch (err) {
+    if (!transaction.finished) await transaction.rollback()
     throw err
   }
 })
 
 
 
+// exports.removeDevice = catchAsync(async (req, res) => {
+//   const { id } = req.params
+//   const user = req.user
+//   const transaction = await dbConnection.transaction()
 
+//   try {
+//     const device = await Device.findByPk(id, { transaction })
 
+//     if (!device) { throw new AppError('Device not found', 404) }
+
+//     if (user.role === 'Child' && device.userId !== user.id) { throw new AppError('Access denied', 403) }
+
+//     if (user.role === 'Parent') {
+//       const family = await Family.findOne({ where: { createdBy: user.id }, transaction })
+//       const member = await FamilyMember.findOne({ where: { familyId: family.id, userId: device.userId }, transaction })
+
+//       if (!member) { throw new AppError('Access denied', 403) }
+
+//       await member.update({ status: 'Inactive' }, { transaction })
+//     }
+
+//     await device.update({ status: 'Removed', deletedAt: new Date() }, { transaction })
+//     await PairingCode.update({ deviceId: null }, { where: { deviceId: device.id }, transaction })
+//     await transaction.commit()
+
+//     res.status(200).json({ success: true, message: 'Device unpaired successfully' })
+//   } 
+//   catch (err) {
+//     if (!transaction.finished) { await transaction.rollback() }
+//     throw err
+//   }
+// })
+
+exports.removeDevice = catchAsync(async (req, res) => {
+  const { deviceId } = req.params
+
+  const transaction = await dbConnection.transaction()
+
+  try {
+    const device = await Device.findOne({
+      where: { id: deviceId },
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    })
+
+    if (!device) {
+      throw new AppError('Device not found', 404)
+    }
+
+    // Optional: ensure only paired devices can be removed
+    if (device.pairStatus !== 'Paired') {
+      throw new AppError('Device is not currently paired', 400)
+    }
+
+    // Soft delete (because paranoid: true)
+    await device.destroy({ transaction })
+
+    await transaction.commit()
+
+    res.status(200).json({
+      success: true,
+      message: 'Device removed successfully'
+    })
+
+  } catch (err) {
+    if (!transaction.finished) await transaction.rollback()
+    throw err
+  }
+})
