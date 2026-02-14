@@ -10,35 +10,21 @@ exports.createFamily = catchAsync(async (req, res, next) => {
     const { familyName } = req.body
     const userId = req.user.id
 
-    if (!req.user.verified) {
-      throw new AppError('Please verify your account', 403, 'ACCOUNT_NOT_VERIFIED')
-    }
-
-    if (req.user.role !== 'Parent') { 
-        throw new AppError('Only parents can create families', 403,'PARENT_ROLE_REQUIRED')
-    }
-
-    if (!familyName) {
-    //   await transaction.rollback()
-      throw new AppError('Family name is required', 400,'FAMILY_NAME_REQUIRED')
-    }
+    if (!req.user.verified) { throw new AppError('Please verify your account', 403, 'ACCOUNT_NOT_VERIFIED') }
+    if (req.user.role !== 'Parent') { throw new AppError('Only parents can create families', 403,'PARENT_ROLE_REQUIRED') }
+    if (!familyName) { throw new AppError('Family name is required', 400,'FAMILY_NAME_REQUIRED') }
 
     const existing = await Family.findOne({ where: { createdBy: userId }, transaction })
-    if (existing) {
-      await transaction.rollback()
-      throw new AppError('You already created a family', 400,'FAMILY_ALREADY_EXISTS')
-    }
+    if (existing) { throw new AppError('You already created a family', 400,'FAMILY_ALREADY_EXISTS') }
 
     const family = await Family.create({ familyName, createdBy: userId }, { transaction })
-    await FamilyMember.create(
-      { userId, familyId: family.id, relationship: 'Parent' },
-      { transaction }
-    )
+    await FamilyMember.create( { userId, familyId: family.id, relationship: 'Parent' }, { transaction } )
 
     await transaction.commit()
     res.status(201).json({ success: true, message: 'Family created successfully.', family })
-  } catch (error) {
-    await transaction.rollback()
+  } 
+  catch (error) {
+    if (!transaction.finished) { await transaction.rollback() }
     throw error
   }
 })
@@ -49,33 +35,23 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
     const { familyId, userId } = req.body
     const parentId = req.user.id
 
-    if (!req.user.verified) {
-        throw new AppError('Please verify your account', 400,'ACCOUNT_NOT_VERIFIED')
-    }
-
-    if (req.user.role !== 'Parent') { 
-        throw new AppError('Only parents can add family members', 403,'PARENT_ROLE_REQUIRED')
-    }
+    if (!req.user.verified) { throw new AppError('Please verify your account', 400,'ACCOUNT_NOT_VERIFIED') }
+    if (req.user.role !== 'Parent') { throw new AppError('Only parents can add family members', 403,'PARENT_ROLE_REQUIRED') }
 
     const family = await Family.findByPk(familyId, { transaction })
-    if (!family) {
-      throw new AppError('Family not found', 403,'FAMILY_NOT_FOUND')
-    }
+    if (!family) { throw new AppError('Family not found', 403,'FAMILY_NOT_FOUND') }
 
     if (family.createdBy !== parentId) {
       await transaction.rollback()
       throw new AppError('You are not allowed to modify this family', 403,'NOT_FAMILY_OWNER')
     }
 
-    const memberExists = await FamilyMember.findOne({
-      where: { userId, familyId },
-      transaction
-    })
+    const memberExists = await FamilyMember.findOne({ where: { userId, familyId }, transaction })
+    if (memberExists) { throw new AppError('User is already a family member', 400,'FAMILY_MEMBER_EXISTS') }
 
-    if (memberExists) {
-    //   await transaction.rollback()
-      throw new AppError('User is already a family member', 400,'FAMILY_MEMBER_EXISTS')
-    }
+    const memberToBeAdded = await User.findOne({ where: userId }, transaction)
+    if (!memberToBeAdded) { throw new AppError('User not found', 404, 'USER_NOT_FOUND') }
+    if(memberToBeAdded.role !== 'Member'){ throw new AppError("Only users with a role of 'Member' can be added to a family", 400) }
 
     await FamilyMember.create({ userId, familyId, relationship: 'Member', status: 'Not_Paired' }, { transaction })
     await transaction.commit()
@@ -83,7 +59,7 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
     res.status(201).json({ message: 'Member added successfully.' })
   } 
   catch (error) {
-    await transaction.rollback()
+    if (!transaction.finished) { await transaction.rollback() }
     throw error
   }
 })

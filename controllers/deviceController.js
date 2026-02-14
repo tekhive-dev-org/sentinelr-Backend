@@ -244,29 +244,14 @@ exports.getFamilyDevices = catchAsync(async (req, res) => {
   const parsedLimit = Math.min(parseInt(limit) || 50, 100)
   const parsedOffset = parseInt(offset) || 0
 
-  const family = await Family.findOne({
-    where: { createdBy: parentId }
-  })
+  const family = await Family.findOne({ where: { createdBy: parentId }})
+  if (!family) { throw new AppError('Family not found', 404) }
 
-  if (!family) {
-    throw new AppError('Family not found', 404)
-  }
-
-  const members = await FamilyMember.findAll({
-    where: { familyId: family.id },
-    attributes: ['userId']
-  })
-
+  const members = await FamilyMember.findAll({ where: { familyId: family.id }, attributes: ['userId'] })
   const memberUserIds = members.map(m => m.userId)
 
-  const where = {
-    userId: memberUserIds
-  }
-
-  if (pairStatus !== 'all') {
-    where.pairStatus =
-      pairStatus.charAt(0).toUpperCase() + pairStatus.slice(1)
-  }
+  const where = { userId: memberUserIds }
+  if (pairStatus !== 'all') { where.pairStatus = pairStatus.charAt(0).toUpperCase() + pairStatus.slice(1) }
 
   const { rows, count } = await Device.findAndCountAll({
     where,
@@ -332,45 +317,57 @@ exports.getFamilyDevices = catchAsync(async (req, res) => {
 
 
 exports.getSingleDevice = catchAsync(async (req, res) => {
-  const { deviceId } = req.params
+  try{
+    const { deviceId } = req.params
+    const parentId = req.user.id
 
-  const device = await Device.findOne({
-    where: { id: deviceId },
-    attributes: ['id', 'deviceName', 'type', 'deviceType', 'platform', 'deviceModel', 'brand', 'osVersion', 'appVersion', 'status', 'batteryPercentage', 'isCharging', 'lastSeen', 'lastLatitude', 'lastLongitude', 'locationAccuracy', 'locationTimestamp', 'pairedAt'
-    ],
-    include: [ { model: User, attributes: ['id', 'name'] } ]})
+    const family = await Family.findOne({ where: { createdBy: parentId }})
+    if (!family) { throw new AppError('Family not found', 404) }
 
-  if (!device) { throw new AppError('Device not found', 404) }
+    const members = await FamilyMember.findAll({ where: { familyId: family.id }, attributes: ['userId'] })
+    const memberUserIds = members.map(m => m.userId)
 
-  const formattedDevice = {
-    id: device.id,
-    name: device.deviceName,
-    type: device.type,
-    deviceType: device.deviceType,
-    platform: device.platform,
-    model: device.model,
-    brand: device.brand,
-    osVersion: device.osVersion,
-    appVersion: device.appVersion,
-    status: device.status?.toLowerCase(),
-    batteryPercentage: device.batteryPercentage,
-    isCharging: device.isCharging,
-    lastSeen: device.lastSeen,
-    lastLocation:
-      device.lastLatitude !== null &&
-      device.lastLongitude !== null
-        ? {
-            latitude: device.lastLatitude,
-            longitude: device.lastLongitude,
-            accuracy: device.locationAccuracy,
-            timestamp: device.locationTimestamp
-          }
-        : null,
-    assignedUser: device.User ? { id: device.User.id, name: device.User.userName } : null,
-    pairedAt: device.pairedAt
+    const device = await Device.findOne({ where: { id: deviceId },
+      attributes: ['id', 'deviceName', 'userId', 'type', 'platform', 'deviceModel', 'brand', 'osVersion', 'appVersion', 'status', 'batteryLevel', 'isCharging', 'lastSeen', 'lastLatitude', 'lastLongitude', 'locationAccuracy', 'locationTimestamp', 'pairedAt'
+      ],
+      include: [ { model: User, attributes: ['id', 'userName'] } ]})
+
+    if (!device) { throw new AppError('Device not found', 404) }
+    if(!memberUserIds.includes(device.userId)){ throw new AppError('You can see device of only your family members', 400) }
+
+    const formattedDevice = {
+      id: device.id,
+      name: device.deviceName,
+      type: device.type,
+      deviceType: device.deviceType,
+      platform: device.platform,
+      model: device.model,
+      brand: device.brand,
+      osVersion: device.osVersion,
+      appVersion: device.appVersion,
+      status: device.status?.toLowerCase(),
+      batteryPercentage: device.batteryPercentage,
+      isCharging: device.isCharging,
+      lastSeen: device.lastSeen,
+      lastLocation:
+        device.lastLatitude !== null &&
+        device.lastLongitude !== null
+          ? {
+              latitude: device.lastLatitude,
+              longitude: device.lastLongitude,
+              accuracy: device.locationAccuracy,
+              timestamp: device.locationTimestamp
+            }
+          : null,
+      assignedUser: device.User ? { id: device.User.id, name: device.User.userName } : null,
+      pairedAt: device.pairedAt
+    }
+
+    res.status(200).json({ success: true, device: formattedDevice })
   }
-
-  res.status(200).json({ success: true, device: formattedDevice })
+  catch(err){
+    throw err
+  }
 })
 
 exports.updateDevice = catchAsync(async (req, res) => {
@@ -390,35 +387,17 @@ exports.updateDevice = catchAsync(async (req, res) => {
       throw new AppError('Device not found', 404)
     }
 
-    // ✅ Update Name
-    if (name) {
-      device.deviceName = name
-    }
+    if (name) { device.deviceName = name }
 
-    // ✅ Reassign Device
     if (assignedUserId) {
-
-      // Check user exists
       const user = await User.findByPk(assignedUserId, { transaction })
       if (!user) {
         throw new AppError('Assigned user not found', 404)
       }
 
-      // Enforce single active device per user
-      const existingDevice = await Device.findOne({
-        where: {
-          userId: assignedUserId,
-          pairStatus: 'Paired'
-        },
-        transaction
-      })
+      const existingDevice = await Device.findOne({ where: { userId: assignedUserId, pairStatus: 'Paired' }, transaction })
 
-      if (existingDevice && existingDevice.id !== device.id) {
-        throw new AppError(
-          'This user already has a paired device',
-          400
-        )
-      }
+      if (existingDevice && existingDevice.id !== device.id) { throw new AppError('This user already has a paired device', 400 ) }
 
       device.userId = assignedUserId
     }
