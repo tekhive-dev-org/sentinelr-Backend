@@ -91,6 +91,7 @@ exports.pairDevice = catchAsync(async (req, res) => {
       deviceName: pairingCode.deviceName,
       userId: pairingCode.assignedUserId,
       type: pairingCode.deviceType,
+      platform: pairingCode.platform,
       status: 'Offline',
       pairStatus: 'Paired',
       pairedAt: new Date()
