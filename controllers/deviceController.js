@@ -129,22 +129,6 @@ exports.viewDevices = async (req, res, next) => {
   }
 }
 
-// exports.checkPairingCodeStatus = catchAsync(async (req, res) => {
-//   const { code } = req.params
-//   const pairingCode = await PairingCode.findOne({ where: { code } })
-
-//   if (!pairingCode) { return res.status(404).json({ valid: false, status: 'Invalid' }) }
-//   if (pairingCode.status === 'Pending' && pairingCode.expiresAt < new Date()) { await pairingCode.update({ status: 'Expired' }) }
-
-//   return res.status(200).json({
-//     valid: pairingCode.status === 'Pending',
-//     status: pairingCode.status,
-//     expiresAt: pairingCode.expiresAt,
-//     deviceName: pairingCode.deviceName,
-//     deviceType: pairingCode.deviceType
-//   })
-// })
-
 exports.getPairingCodeStatus = catchAsync(async (req, res) => {
   let { code } = req.params
   code = code.toUpperCase()
@@ -178,32 +162,6 @@ exports.getPairingCodeStatus = catchAsync(async (req, res) => {
 
   return res.status(200).json({ success: true, pairStatus: 'pending', expiresInSeconds })
 })
-
-
-// exports.listDevices = catchAsync(async (req, res) => {
-//   const user = req.user
-//   let where = {}
-
-//   if (user.role === 'Child') { where.userId = user.id }
-//   if (user.role === 'Parent') {
-//     const family = await Family.findOne({ where: { createdBy: user.id } })
-
-//     if (!family) { throw new AppError('Family not found', 404) }
-
-//     const members = await FamilyMember.findAll({ where: { familyId: family.id, relationship: 'Child', status: 'Active'}, attributes: ['userId'] })
-//     const childIds = members.map(m => m.userId)
-
-//     where.userId = childIds
-//   }
-
-//   const devices = await Device.findAll({ 
-//     where,
-//     attributes: ['deviceName', 'type', 'status', 'pairedAt', 'lastSeen'], 
-//     order: [['createdAt', 'DESC']]
-//   })
-
-//   res.status(200).json({ success: true, count: devices.length, devices })
-// })
 
 exports.getAllDevices = catchAsync(async (req, res) => {
   const { pairStatus = 'all', limit = 50, offset = 0 } = req.query
@@ -373,49 +331,36 @@ exports.getSingleDevice = catchAsync(async (req, res) => {
 exports.updateDevice = catchAsync(async (req, res) => {
   const { deviceId } = req.params
   const { name, assignedUserId } = req.body
-
+  const loggedInUserId = req.user.id
   const transaction = await dbConnection.transaction()
 
   try {
-    const device = await Device.findOne({
-      where: { id: deviceId },
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    })
+    const user = await User.findByPk(assignedUserId, { transaction })
+    if (!user) { throw new AppError('Assigned user not found', 404) }
 
-    if (!device) {
-      throw new AppError('Device not found', 404)
-    }
+    const family = await Family.findOne({ where: { createdBy: loggedInUserId }, transaction })
+    if (!family) { throw new AppError('You do not have a family created', 403) }
 
+    const membership = await FamilyMember.findOne({ where: { familyId: family.id, userId: user.id }, transaction })
+    if (!membership) { throw new AppError('This user is not part of your family', 403) }
+
+    const device = await Device.findOne({ where: { id: deviceId }, transaction, lock: transaction.LOCK.UPDATE })
+    if (!device) { throw new AppError('Device not found', 404) }
     if (name) { device.deviceName = name }
 
     if (assignedUserId) {
-      const user = await User.findByPk(assignedUserId, { transaction })
-      if (!user) {
-        throw new AppError('Assigned user not found', 404)
-      }
-
-      const existingDevice = await Device.findOne({ where: { userId: assignedUserId, pairStatus: 'Paired' }, transaction })
-
+      const existingDevice = await Device.findOne({ where: { userId: user.id, pairStatus: 'Paired' }, transaction })
       if (existingDevice && existingDevice.id !== device.id) { throw new AppError('This user already has a paired device', 400 ) }
 
       device.userId = assignedUserId
     }
 
     await device.save({ transaction })
-
     await transaction.commit()
 
-    res.status(200).json({
-      success: true,
-      device: {
-        id: device.id,
-        name: device.deviceName,
-        assignedUserId: device.userId
-      }
-    })
-
-  } catch (err) {
+    res.status(200).json({ success: true, device: { id: device.id, name: device.deviceName, assignedUserId: device.userId } })
+  } 
+  catch (err) {
     if (!transaction.finished) await transaction.rollback()
     throw err
   }
