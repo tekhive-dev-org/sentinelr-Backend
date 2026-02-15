@@ -33,6 +33,10 @@ const PairingCode = dbConnection.define('PairingCode', {
     allowNull: false,
     defaultValue: 'Unknown'
   },
+  platform: {
+    type: DataTypes.ENUM('IOS', 'Android'),
+    allowNull: true
+  },
   assignedUserId: {
     type: DataTypes.INTEGER,
     allowNull: true

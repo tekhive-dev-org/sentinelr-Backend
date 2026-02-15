@@ -19,7 +19,7 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
   const atomic = await dbConnection.transaction()
 
   try{
-      const { memberUserId, deviceName, deviceType } = req.body
+      const { memberUserId, deviceName, deviceType, platform } = req.body
       const parentId = req.user.id
 
       if (req.user.role !== 'Parent') {
@@ -46,6 +46,7 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
         assignedUserId: memberUserId,
         deviceName,
         deviceType,
+        platform,
         expiresAt
       }, { transaction: atomic })
 
@@ -366,73 +367,29 @@ exports.updateDevice = catchAsync(async (req, res) => {
   }
 })
 
-
-
-// exports.removeDevice = catchAsync(async (req, res) => {
-//   const { id } = req.params
-//   const user = req.user
-//   const transaction = await dbConnection.transaction()
-
-//   try {
-//     const device = await Device.findByPk(id, { transaction })
-
-//     if (!device) { throw new AppError('Device not found', 404) }
-
-//     if (user.role === 'Child' && device.userId !== user.id) { throw new AppError('Access denied', 403) }
-
-//     if (user.role === 'Parent') {
-//       const family = await Family.findOne({ where: { createdBy: user.id }, transaction })
-//       const member = await FamilyMember.findOne({ where: { familyId: family.id, userId: device.userId }, transaction })
-
-//       if (!member) { throw new AppError('Access denied', 403) }
-
-//       await member.update({ status: 'Inactive' }, { transaction })
-//     }
-
-//     await device.update({ status: 'Removed', deletedAt: new Date() }, { transaction })
-//     await PairingCode.update({ deviceId: null }, { where: { deviceId: device.id }, transaction })
-//     await transaction.commit()
-
-//     res.status(200).json({ success: true, message: 'Device unpaired successfully' })
-//   } 
-//   catch (err) {
-//     if (!transaction.finished) { await transaction.rollback() }
-//     throw err
-//   }
-// })
-
 exports.removeDevice = catchAsync(async (req, res) => {
   const { deviceId } = req.params
-
+  const loggedInUserId = req.user.id
   const transaction = await dbConnection.transaction()
 
   try {
-    const device = await Device.findOne({
-      where: { id: deviceId },
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    })
+    const family = await Family.findOne({ where: { createdBy: loggedInUserId }, transaction })
+    if (!family) { throw new AppError('You do not have a family created', 403) }
 
-    if (!device) {
-      throw new AppError('Device not found', 404)
-    }
+    const device = await Device.findOne({ where: { id: deviceId }, transaction, lock: transaction.LOCK.UPDATE })
+    if (!device) { throw new AppError('Device not found', 404) }
 
-    // Optional: ensure only paired devices can be removed
-    if (device.pairStatus !== 'Paired') {
-      throw new AppError('Device is not currently paired', 400)
-    }
+    const membership = await FamilyMember.findOne({ where: { familyId: family.id, userId: device.userId }, transaction })
+    if (!membership) { throw new AppError('This user is not part of your family', 403) }
 
-    // Soft delete (because paranoid: true)
+    if (device.pairStatus !== 'Paired') { throw new AppError('Device is not currently paired', 400) }
+
     await device.destroy({ transaction })
-
     await transaction.commit()
 
-    res.status(200).json({
-      success: true,
-      message: 'Device removed successfully'
-    })
-
-  } catch (err) {
+    res.status(200).json({ success: true, message: 'Device removed successfully' })
+  } 
+  catch (err) {
     if (!transaction.finished) await transaction.rollback()
     throw err
   }
