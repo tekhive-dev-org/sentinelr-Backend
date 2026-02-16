@@ -1,9 +1,9 @@
 const express = require('express')
 const locationRouter = express.Router()
-const { authenticate } = require('../middleware/auth')
+const { authenticate, deviceAuth } = require('../middleware/auth')
 const locationController = require('../controllers/locationController')
 
-locationRouter.post('/update', authenticate, locationController.updateDeviceLocation)
+locationRouter.post('/location/update', deviceAuth, locationController.uploadLocation)
 
 
 

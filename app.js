@@ -7,6 +7,7 @@ const cors = require('cors')
 const authRoute = require('./routes/authRoute')
 const familyRoute = require('./routes/familyRoute')
 const deviceRoute = require('./routes/deviceRoute')
+const locationRoute = require('./routes/locationRoute')
 const socketHandler = require('./sockets')
 const cron = require("node-cron")
 const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJobs")
@@ -50,7 +51,7 @@ app.use(
   })
 )
 app.use('/uploads', express.static('uploads'));
-app.use('/api', [authRoute, deviceRoute, familyRoute])
+app.use('/api', [authRoute, deviceRoute, familyRoute, locationRoute])
 
 app.get('/', (req, res) => { res.send('API is running !') })
 // console.log('Migrations path:', path.resolve(process.cwd(), 'migrations'));

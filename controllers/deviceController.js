@@ -84,7 +84,7 @@ exports.pairDevice = catchAsync(async (req, res) => {
       throw new AppError('Pairing Code Expired', 400, 'PAIRING_CODE_INVALID')
     }
 
-        const alreadyPaired = await Device.findOne({ where: { userId: pairingCode.assignedUserId, pairStatus: 'Paired' }, transaction, lock: transaction.LOCK.UPDATE })
+    const alreadyPaired = await Device.findOne({ where: { userId: pairingCode.assignedUserId, pairStatus: 'Paired' }, transaction, lock: transaction.LOCK.UPDATE })
     if (alreadyPaired) { throw new AppError('Device already paired for this user', 400, 'DEVICE_ALREADY_PAIRED') }
 
     const device = await Device.create({

@@ -69,10 +69,7 @@ const Device = dbConnection.define('Device', {
     batteryLevel: {
         type: DataTypes.INTEGER,
         allowNull: true,
-        validate: {
-        min: 0,
-        max: 100
-        }
+        validate: { min: 0, max: 100 }
     },
 
     isCharging: {
@@ -125,7 +122,7 @@ const Device = dbConnection.define('Device', {
     timestamps: true,
 
     indexes: [
-        {  unique: true, fields: ['userId'], where: { deletedAt: null } },
+        { unique: true, fields: ['userId'], where: { deletedAt: null } },
         { fields: ['status'] },
         { fields: ['lastSeen'] }
     ]
