@@ -15,7 +15,7 @@ const User = dbConnection.define('User', {
     },
     password: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true
     },
     phone: {
         type: DataTypes.STRING,

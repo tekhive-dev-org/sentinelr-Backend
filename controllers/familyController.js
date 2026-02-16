@@ -49,7 +49,7 @@ exports.addMemberToFamily = catchAsync(async (req, res, next) => {
     const memberExists = await FamilyMember.findOne({ where: { userId, familyId }, transaction })
     if (memberExists) { throw new AppError('User is already a family member', 400,'FAMILY_MEMBER_EXISTS') }
 
-    const memberToBeAdded = await User.findOne({ where: userId }, transaction)
+    const memberToBeAdded = await User.findOne({ where: { id: userId }}, transaction)
     if (!memberToBeAdded) { throw new AppError('User not found', 404, 'USER_NOT_FOUND') }
     if(memberToBeAdded.role !== 'Member'){ throw new AppError("Only users with a role of 'Member' can be added to a family", 400) }
 
