@@ -1,71 +1,16 @@
 require('dotenv').config()
 const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
-const { Location, Device, dbConnection } = require('../models')
+const { Location, FamilyMember, Family, Device, User, dbConnection } = require('../models')
 
-
-// exports.updateDeviceLocation = async (req, res, next) => {
-//   const transaction = await dbConnection.transaction()
-//   try {
-//     const { deviceId, latitude, longitude } = req.body
-//     const userId = req.user.id
-
-//     if (!deviceId || !latitude || !longitude) {
-//       await transaction.rollback()
-//       return res.status(400).json({ message: 'Missing location fields.' })
-//     }
-
-//     const device = await Device.findOne({ where: { id: deviceId, userId } })
-//     if (!device) {
-//       await transaction.rollback()
-//       return res.status(403).json({ message: 'Unauthorized device.' })
-//     }
-
-//     const location = await Location.create(
-//       { deviceId, latitude, longitude, timestamp: new Date() },
-//       { transaction }
-//     )
-
-//     await transaction.commit()
-
-//     // 🔥 emit update to all clients
-//     if (global.io) {
-//       global.io.emit('deviceLocationUpdate', {
-//         deviceId,
-//         latitude,
-//         longitude,
-//         updatedAt: new Date()
-//       })
-//     }
-
-//     return res.status(200).json({
-//       message: 'Device location updated successfully.',
-//       location
-//     })
-//   } catch (error) {
-//     await transaction.rollback()
-//     console.error(error)
-//     next(error)
-//   }
-// }
 
 const THROTTLE = parseInt(process.env.LOCATION_THROTTLE_MS) || 5000
 
 exports.uploadLocation = catchAsync(async (req, res) => {
-  // const deviceId = parseInt(req.device.deviceId, 10)
   const deviceId = req.device.id
   const transaction = await dbConnection.transaction()
 
-  const {
-    latitude,
-    longitude,
-    accuracy,
-    altitude,
-    speed,
-    timestamp,
-    source
-  } = req.body
-
+  const { latitude, longitude, accuracy, altitude, speed, timestamp, source } = req.body
   if (!latitude || !longitude) { throw new AppError('Latitude and longitude required', 400) }
 
   const device = await Device.findByPk(deviceId, { transaction })
@@ -77,19 +22,10 @@ exports.uploadLocation = catchAsync(async (req, res) => {
   try {
     const pingTime = timestamp ? new Date(timestamp) : new Date()
 
-    await Location.create({
-      deviceId,
-      latitude,
-      longitude,
-      accuracy,
-      altitude,
-      speed,
-      timestamp: pingTime,
-      source
-    }, { transaction })
-
+    await Location.create({ deviceId, latitude, longitude, accuracy, altitude, speed, timestamp: pingTime, source}, { transaction })
     await device.update({ lastLatitude: latitude, lastLongitude: longitude, lastSeen: pingTime, status: 'Online' }, { transaction })
     await transaction.commit()
+
     res.status(200).json({ success: true, message: 'Ping received' })
   } 
   catch (error) {
@@ -97,5 +33,65 @@ exports.uploadLocation = catchAsync(async (req, res) => {
     throw error
   }
 })
+
+exports.getLiveLocation = async (req, res) => {
+  try {
+    const parentUserId = req.user.id
+    const { deviceId, userId } = req.query;
+
+    // const locations = await Location.findAll({
+    //   where: deviceId ? { deviceId } : {},
+    //   include: [
+    //     {
+    //       model: Device, attributes: ["id", "userId"], where: userId ? { userId } : {},
+    //       include: [ { model: User, attributes: ["id", "firstName", "lastName"] } ]
+    //     }
+    //   ],
+    //   order: [["timestamp", "DESC"]]
+    // })
+
+    const locations = await Location.findAll({
+    where: deviceId ? { deviceId } : {},
+    include: [
+      {
+        model: Device, attributes: ["id", "userId"], where: userId ? { userId } : {},
+        include: [ { model: User, attributes: ["id", "userName"],
+          include: [ { model: Family, as: 'families', attributes: ["id", "createdBy"], where: { createdBy: parentUserId }, through: { attributes: [] }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+    order: [["timestamp", "DESC"]]
+  })
+
+
+    const latestLocations = [];
+    const seenDevices = new Set()
+
+    for (const loc of locations) {
+      if (!seenDevices.has(loc.deviceId)) {
+        seenDevices.add(loc.deviceId)
+
+        latestLocations.push({
+          deviceId: loc.deviceId,
+          userId: loc.Device.userId,
+          userName: loc.Device.User.userName,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy: loc.accuracy,
+          timestamp: loc.timestamp,
+          address: loc.address
+        })
+      }
+    }
+
+    return res.status(200).json({ success: true, locations: latestLocations })
+  } 
+  catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch live locations", error: error.message })
+  }
+}
 
 

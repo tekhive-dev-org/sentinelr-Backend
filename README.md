@@ -33,5 +33,11 @@
 
 ---
 
+**Functionalies**
+- To make the system scalable and faster, instead of backend requesting location in real time, an inbuilt mobile-agent sends this periodically  
+
+- Instead of polling (frontend waiting for backend for realtime updates), backend pushes update to dashboard via webSockets
+
+---
 
 * generate migrations locally like so ```npx sequelize-cli migration:generate --name migration-message```

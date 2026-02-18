@@ -1,6 +1,6 @@
 const express = require('express')
 const deviceRouter = express.Router()
-const { authenticate, requireParent } = require('../middleware/auth')
+const { authenticate, requireParent, deviceAuth } = require('../middleware/auth')
 const deviceController = require('../controllers/deviceController')
 
 deviceRouter.post('/device/generate/pair/code', authenticate, requireParent, deviceController.generatePairingCode)
@@ -12,6 +12,8 @@ deviceRouter.get('/device/family-devices', authenticate, deviceController.getFam
 deviceRouter.get('/device/:deviceId', authenticate, deviceController.getSingleDevice)
 deviceRouter.patch('/device/:deviceId', authenticate, deviceController.updateDevice)
 deviceRouter.delete('/device/:deviceId', authenticate, deviceController.removeDevice)
+deviceRouter.post('/device/heartbeat', deviceAuth, deviceController.sendHeartbeat)
+
 
 
 
