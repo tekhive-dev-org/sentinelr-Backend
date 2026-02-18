@@ -1,6 +1,6 @@
 require('dotenv').config()
 const server = require('./app')
-const { dbConnection } = require('./models')
+const { dbConnection, Device } = require('./models')
 const authController = require('./controllers/authController')
 
 const dns = require('dns')
