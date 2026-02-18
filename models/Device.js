@@ -61,7 +61,7 @@ const Device = dbConnection.define('Device', {
     },
 
     pairStatus: {
-        type: DataTypes.ENUM('Pending', 'Paired', 'Expired'),
+        type: DataTypes.ENUM('Pending', 'Paired', 'Unpaired', 'Expired'),
         allowNull: false,
         defaultValue: 'Pending'
     },

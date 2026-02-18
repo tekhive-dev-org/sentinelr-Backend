@@ -31,7 +31,6 @@ const FamilyMember = dbConnection.define('FamilyMember',{
             }
         }
     ]
-    // deletedAt: 'deletedAt'
 }
 )
 

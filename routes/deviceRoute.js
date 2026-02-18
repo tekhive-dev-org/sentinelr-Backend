@@ -13,6 +13,7 @@ deviceRouter.get('/device/:deviceId', authenticate, deviceController.getSingleDe
 deviceRouter.patch('/device/:deviceId', authenticate, deviceController.updateDevice)
 deviceRouter.delete('/device/:deviceId', authenticate, deviceController.removeDevice)
 deviceRouter.post('/device/heartbeat', deviceAuth, deviceController.sendHeartbeat)
+deviceRouter.patch('/device/:id/unpair', authenticate, deviceController.unpairDevice)
 
 
 

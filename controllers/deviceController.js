@@ -427,5 +427,75 @@ exports.sendHeartbeat = async (req, res) => {
   }
 }
 
+exports.unpairDevice = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction();
+
+  try {
+    const parentId = req.user.id
+    const { id: deviceId } = req.params
+
+    const parent = await User.findByPk(parentId, { transaction })
+    if (!parent || !['Parent', 'Admin'].includes(parent.role)) { throw new AppError('Not authorized to unpair devices', 403) }
+
+    const device = await Device.findOne({ where: { id: deviceId }, transaction })
+    if (!device) { throw new AppError('Device not found', 404) }
+
+    if (!device.userId) {
+          await transaction.commit();
+          return res.status(200).json({
+            success: true,
+            message: 'Device already unpaired'
+          });
+    }
+
+    const childUserId = device.userId
+
+    const parentFamilies = await FamilyMember.findAll({ where: { userId: parentId }, attributes: ['familyId'], transaction})
+
+    if (!parentFamilies.length) { throw new AppError('Parent not linked to any family', 403) }
+
+    const parentFamilyIds = parentFamilies.map(f => f.familyId);
+
+    const childFamily = await FamilyMember.findOne({
+      where: {
+        userId: childUserId,
+        familyId: parentFamilyIds
+      },
+      transaction
+    });
+
+    if (!childFamily) {
+      throw new AppError(
+        'You cannot unpair a device outside your family',
+        403
+      );
+    }
+
+    await device.update({
+      pairStatus: 'Unpaired',
+      status: 'Offline'
+    }, { transaction })
+
+    await PairingCode.update( { expired: true }, { where: { deviceId }, transaction })
+
+    // await AuditLog.create({
+    //   userId: parentId,
+    //   action: 'UNPAIR_DEVICE',
+    //   resourceType: 'Device',
+    //   resourceId: deviceId,
+    //   ipAddress: req.ip
+    // }, { transaction })
+
+    await transaction.commit()
+
+    res.status(200).json({ success: true, message: 'Device unpaired successfully' })
+  } 
+  catch (error) {
+    if (!transaction.finished) { await transaction.rollback() }
+    throw error
+  }
+})
+
+
 
 
