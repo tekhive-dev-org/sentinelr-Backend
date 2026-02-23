@@ -41,7 +41,7 @@ const Location = dbConnection.define('Location', {
     timestamps: true,
 
     indexes: [
-        { fields: ['deviceId'] },
+        { fields: ['deviceId', 'timestamp'] },
         { fields: ['timestamp'] }
     ]
 }

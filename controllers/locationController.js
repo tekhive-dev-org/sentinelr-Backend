@@ -1,6 +1,7 @@
 require('dotenv').config()
 const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
+const { Op } = require('sequelize');
 const { Location, FamilyMember, Family, Device, User, dbConnection } = require('../models')
 
 
@@ -93,5 +94,82 @@ exports.getLiveLocation = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to fetch live locations", error: error.message })
   }
 }
+
+
+exports.getLocationHistory = catchAsync(async (req, res) => {
+  const parentId = req.user.id
+  const { deviceId, startDate, endDate, limit = 100 } = req.query
+
+  if (!deviceId) { throw new AppError('deviceId is required', 400) }
+
+  const parsedLimit = Math.min(parseInt(limit) || 100, 500)
+
+  const device = await Device.findOne({ where: { id: deviceId }, attributes: ['id', 'userId'] })
+  if (!device) { throw new AppError('Device not found', 404) }
+  if (!device.userId) { throw new AppError('Device not assigned', 400) }
+
+  const childUserId = device.userId;
+
+  const parentFamilies = await FamilyMember.findAll({ where: { userId: parentId }, attributes: ['familyId'] })
+  if (!parentFamilies.length) { throw new AppError('Not authorized', 403) }
+
+  const familyIds = parentFamilies.map(f => f.familyId);
+
+  const childMembership = await FamilyMember.findOne({ where: { userId: childUserId, familyId: familyIds }})
+  if (!childMembership) { throw new AppError('Not authorized to view this device', 403) }
+
+  //       ---------------------------------
+
+  // const device = await Device.findOne({ 
+  //       where: { id: deviceId }, 
+  //       include: [{ model: User, required: true,
+  //         include: [ { model: Family, required: true, through: { attributes: [] },
+  //           include: [ { model: User, required: true, through: { attributes: [] }, where: { id: parentId }} ]
+  //         }
+  //       ]
+  //     }
+  //   ]
+  // })
+
+  //       ---------------------------------
+
+  //   const device = await Device.findOne({
+  //   where: { id: deviceId },
+  //   attributes: ['id', 'userId'],
+  //   include: [ { model: User, attributes: ['id', 'userName'],
+  //       include: [ { association: 'families', required: true,
+  //           include: [ { association: 'members', attributes: [], where: { id: parentId }, required: true } ]
+  //         }
+  //       ]
+  //     }
+  //   ]
+  // })
+
+  // if (!device) { throw new AppError('Not authorized or device not found', 403) }
+  const where = { deviceId }
+
+  if (startDate || endDate) {
+    where.timestamp = {}
+    if (startDate) where.timestamp[Op.gte] = new Date(startDate)
+    if (endDate) where.timestamp[Op.lte] = new Date(endDate)
+  }
+
+  const { rows, count } = await Location.findAndCountAll({
+    where,
+    limit: parsedLimit,
+    order: [['timestamp', 'DESC']],
+    attributes: ['latitude', 'longitude', 'timestamp', 'accuracy']
+  })
+
+  const history = rows.map(loc => ({
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    timestamp: loc.timestamp,
+    address: null // optional reverse geocoding later
+  }))
+
+  res.status(200).json({ success: true, history, total: count })
+})
+
 
 

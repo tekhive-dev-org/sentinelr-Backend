@@ -383,11 +383,10 @@ exports.removeDevice = catchAsync(async (req, res) => {
     const membership = await FamilyMember.findOne({ where: { familyId: family.id, userId: device.userId }, transaction })
     if (!membership) { throw new AppError('This user is not part of your family', 403) }
 
-    if (device.pairStatus !== 'Paired') { throw new AppError('Device is not currently paired', 400) }
+    // if (device.pairStatus !== 'Paired') { throw new AppError('Device is not currently paired', 400) }
 
     await device.destroy({ transaction })
     await transaction.commit()
-
     res.status(200).json({ success: true, message: 'Device removed successfully' })
   } 
   catch (err) {
@@ -427,8 +426,8 @@ exports.sendHeartbeat = async (req, res) => {
   }
 }
 
-exports.unpairDevice = catchAsync(async (req, res) => {
-  const transaction = await dbConnection.transaction();
+exports.toggleUnpairPairDevice = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction()
 
   try {
     const parentId = req.user.id
@@ -441,11 +440,7 @@ exports.unpairDevice = catchAsync(async (req, res) => {
     if (!device) { throw new AppError('Device not found', 404) }
 
     if (!device.userId) {
-          await transaction.commit();
-          return res.status(200).json({
-            success: true,
-            message: 'Device already unpaired'
-          });
+          return res.status(200).json({ success: true, message: 'Device already unpaired' })
     }
 
     const childUserId = device.userId
@@ -454,29 +449,22 @@ exports.unpairDevice = catchAsync(async (req, res) => {
 
     if (!parentFamilies.length) { throw new AppError('Parent not linked to any family', 403) }
 
-    const parentFamilyIds = parentFamilies.map(f => f.familyId);
+    const parentFamilyIds = parentFamilies.map(f => f.familyId)
 
-    const childFamily = await FamilyMember.findOne({
-      where: {
-        userId: childUserId,
-        familyId: parentFamilyIds
-      },
-      transaction
-    });
+    const childFamily = await FamilyMember.findOne({ where: { userId: childUserId, familyId: parentFamilyIds }, transaction })
+    if (!childFamily) { throw new AppError( 'You cannot unpair a device outside your family', 403) }
 
-    if (!childFamily) {
-      throw new AppError(
-        'You cannot unpair a device outside your family',
-        403
-      );
+
+    let message = ''
+    if (device.pairStatus === 'Paired') {
+      await device.update({ pairStatus: 'Unpaired', status: 'Offline' }, { transaction })
+      await PairingCode.update({ expired: true }, { where: { deviceId }, transaction })
+      message = 'Device unpaired successfully'
+    } 
+    else {
+      await device.update({ pairStatus: 'Paired', status: 'Online' }, { transaction })
+      message = 'Device re-paired successfully'
     }
-
-    await device.update({
-      pairStatus: 'Unpaired',
-      status: 'Offline'
-    }, { transaction })
-
-    await PairingCode.update( { expired: true }, { where: { deviceId }, transaction })
 
     // await AuditLog.create({
     //   userId: parentId,
@@ -487,8 +475,7 @@ exports.unpairDevice = catchAsync(async (req, res) => {
     // }, { transaction })
 
     await transaction.commit()
-
-    res.status(200).json({ success: true, message: 'Device unpaired successfully' })
+    res.status(200).json({ success: true, message })
   } 
   catch (error) {
     if (!transaction.finished) { await transaction.rollback() }

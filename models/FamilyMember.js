@@ -23,6 +23,9 @@ const FamilyMember = dbConnection.define('FamilyMember',{
     paranoid: true,
     timestamps: true,
     indexes: [
+        { fields: ['familyId'] },
+        { fields: ['userId'] },
+        { fields: ['relationship'] },
         {
             unique: true,
             fields: ['familyId', 'userId'],
