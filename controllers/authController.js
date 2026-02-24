@@ -624,6 +624,7 @@ exports.restoreDeletedAccount = async (req, res) => {
 
 
 
+
 function generateOtp(length = 6){
     const generatedOtp = crypto.randomInt(0, Math.pow(10, length)).toString().padStart(length, '0')
     return generatedOtp

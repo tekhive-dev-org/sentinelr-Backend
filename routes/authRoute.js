@@ -1,9 +1,14 @@
+require('dotenv').config()
 const express = require('express')
 const authController = require('../controllers/authController')
 const userController = require('../controllers/userController')
 const upload = require('../middleware/upload')
 const { authenticate, authorizeAdmin, optionalAuth } = require('../middleware/auth')
 const authRouter = express.Router()
+const passport = require('passport') 
+const jwt = require('jsonwebtoken')
+
+
 
 authRouter.post('/auth/login', authController.login)
 authRouter.post('/auth/register', authController.register)
@@ -22,6 +27,15 @@ authRouter.put('/user/update-profile-picture', authenticate, upload.single('prof
 authRouter.put('/user/update-profile', authenticate, userController.updateUserProfile)
 authRouter.delete('/user/soft-delete', authenticate, userController.softDeleteAccount)
 
+authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }) )
+authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => { 
+      try{
+        const token = jwt.sign({ userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' })
+        res.status(200).json({ message: 'Login via Google successful.', token })
+      }
+      catch(err){  res.status(500).json({ message: 'Login via Google failed.', error: err.message }) }
+    })
+
 
 
 
@@ -31,6 +45,8 @@ authRouter.get('/admin-dashboard', authenticate, authorizeAdmin, (req, res) => {
 
 // INTERNAL USE ONLY
 authRouter.get('/user-by-email', authenticate, authController.getUserByEmail) // /user-by-email?email=test@example.com
+
+
 
 
 
