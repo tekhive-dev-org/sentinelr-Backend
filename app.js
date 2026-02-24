@@ -2,6 +2,7 @@ const express = require('express')
 const errorHandler = require('./middleware/errorHandler')
 const http = require('http')
 const rateLimit = require('express-rate-limit')
+const passport = require('passport')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const authRoute = require('./routes/authRoute')
@@ -50,6 +51,9 @@ app.use(
     legacyHeaders: false
   })
 )
+app.use(passport.initialize())
+app.use(passport.session())
+
 app.use('/uploads', express.static('uploads'));
 app.use('/api', [authRoute, deviceRoute, familyRoute, locationRoute])
 

@@ -5,7 +5,7 @@ const userController = require('../controllers/userController')
 const upload = require('../middleware/upload')
 const { authenticate, authorizeAdmin, optionalAuth } = require('../middleware/auth')
 const authRouter = express.Router()
-const passport = require('passport') 
+const passport = require('passport')
 const jwt = require('jsonwebtoken')
 
 
