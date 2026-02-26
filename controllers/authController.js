@@ -24,7 +24,7 @@ exports.createFirstSuperAdmin = async () => {
                 email: process.env.SUPER_ADMIN_EMAIL,
                 password: process.env.SUPER_ADMIN_PASSWORD,
                 role: "SuperAdmin",
- 		verified: true
+ 		            verified: true
             });
 
             console.log("✔ First super admin created");

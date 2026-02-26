@@ -1,7 +1,7 @@
 require('dotenv').config()
 const passport = require('passport')
 const GoogleStrategy = require('passport-google-oauth20').Strategy
-const User = require('../models/User')
+const { User, Family, FamilyMember, dbConnection } = require('../models')
 
 
 passport.use(new GoogleStrategy({
@@ -11,8 +11,9 @@ passport.use(new GoogleStrategy({
 
   },
   async (accessToken, refreshToken, profile, done) => {
+    const atomic = await dbConnection.transaction()
     try {
-      let user = await User.findOne({ where: { email: profile.emails[0].value } })
+      let user = await User.findOne({ where: { email: profile.emails[0].value }, transaction: atomic })
 
       if (!user) {
         user = await User.create({
@@ -21,11 +22,29 @@ passport.use(new GoogleStrategy({
           verified: true,
           role: 'Parent',
           isLoginEnabled: true
-        })
+        }, { transaction: atomic })
+
+        const existing = await Family.findOne({ where: { createdBy: user.id }, transaction: atomic })
+        if (existing) { 
+          await atomic.rollback()
+          throw new AppError( 'You already created a family', 400, 'FAMILY_ALREADY_EXISTS' )
+        }
+
+        if (user.role === 'Parent') { 
+          const family = await Family.create({ familyName: `${user.userName}'s Family`, createdBy: user.id, maxMembers: 2 }, { transaction: atomic }) 
+          await FamilyMember.create({ userId: user.id, familyId: family.id, relationship: 'Parent', status: 'Not_Paired' }, { transaction: atomic })
+        } 
+        else {
+          await atomic.rollback()
+          throw new AppError('Only parents can create families', 403, 'PARENT_ROLE_REQUIRED') 
+        }
       }
 
+      await atomic.commit()
       return done(null, user)
-    } catch (err) {
+    } 
+    catch (err) {
+      if (!atomic.finished) { await atomic.rollback() }
       return done(err, null)
     }
   }
