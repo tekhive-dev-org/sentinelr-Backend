@@ -28,33 +28,54 @@ authRouter.put('/user/update-profile', authenticate, userController.updateUserPr
 authRouter.delete('/user/soft-delete', authenticate, userController.softDeleteAccount)
 
 authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }) )
-// authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => { 
-//       try{
-//         const token = jwt.sign({ userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' })
-//         res.status(200).json({ message: 'Login via Google successful.', token })
-//       }
-//       catch(err){  res.status(500).json({ message: 'Login via Google failed.', error: err.message }) }
+
+//SENDING JSON PAYLOAD
+authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => { 
+      try{
+        const token = jwt.sign({ userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' })
+        res.status(200).json({ message: 'Login via Google successful.', token })
+      }
+      catch(err){  res.status(500).json({ message: 'Login via Google failed.', error: err.message }) }
+})
+
+
+// REDIRECTING TO A FRONTEND
+// authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
+//     try {
+//       const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
+//       res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
+//       res.redirect('https://sentinelr-frontend.vercel.app/dashboard')
+//     } 
+//     catch (err) { 
+//       res.status(500).json({ message: 'Login via Google failed.', error: err.message })
+//       // res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`)
+//     }
 // })
 
-authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
-    try {
-      const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
-      res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
-      res.redirect('https://sentinelr-frontend.vercel.app/dashboard')
-    } 
-    catch (err) { 
-      res.status(500).json({ message: 'Login via Google failed.', error: err.message })
-      // res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`)
-    }
-})
+
+//LOCALHOST
+// authRouter.get('/auth/google/callback',
+//   passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
+//     try {
+//       const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
+//       res.cookie('jwt', token, { httpOnly: true, secure: false, sameSite: 'Lax' })
+//       res.redirect('http://localhost:4000/dashboard')
+//     } 
+//     catch (err) { res.status(500).json({ message: 'Login via Google failed.', error: err.message }) }
+//   }
+// )
+
+// http://localhost:4000
+// http://localhost:4000/api/auth/google/callback
+// https://sentinelr-backend.onrender.com
+// https://sentinelr-backend.onrender.com/api/auth/google/callback
 
 
 
 
 
-authRouter.get('/admin-dashboard', authenticate, authorizeAdmin, (req, res) => {
-    res.json({ message: "Welcome Admin!" });
-})
+
+authRouter.get('/admin-dashboard', authenticate, authorizeAdmin, (req, res) => { res.json({ message: "Welcome Admin!" }) })
 
 // INTERNAL USE ONLY
 authRouter.get('/user-by-email', authenticate, authController.getUserByEmail) // /user-by-email?email=test@example.com

@@ -8,7 +8,7 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_OAUTH_CLIENT_ID,
     clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
     callbackURL: "https://sentinelr-backend.onrender.com/api/auth/google/callback"
-
+    // callbackURL: "http://localhost:4000/api/auth/google/callback"
   },
   async (accessToken, refreshToken, profile, done) => {
     const atomic = await dbConnection.transaction()
