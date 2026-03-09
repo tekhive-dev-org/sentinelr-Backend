@@ -28,22 +28,22 @@ authRouter.put('/user/update-profile', authenticate, userController.updateUserPr
 authRouter.delete('/user/soft-delete', authenticate, userController.softDeleteAccount)
 
 authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }) )
-authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => { 
-      try{
-        const token = jwt.sign({ userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' })
-        res.status(200).json({ message: 'Login via Google successful.', token })
-      }
-      catch(err){  res.status(500).json({ message: 'Login via Google failed.', error: err.message }) }
-})
-
-// authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
-//     try {
-//       const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
-//       res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
-//       res.redirect('https://sentinelr-frontend.vercel.app/dashboard')
-//     } 
-//     catch (err) { res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`) }
+// authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => { 
+//       try{
+//         const token = jwt.sign({ userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' })
+//         res.status(200).json({ message: 'Login via Google successful.', token })
+//       }
+//       catch(err){  res.status(500).json({ message: 'Login via Google failed.', error: err.message }) }
 // })
+
+authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
+    try {
+      const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
+      res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
+      res.redirect('https://sentinelr-frontend.vercel.app/dashboard')
+    } 
+    catch (err) { res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`) }
+})
 
 
 
