@@ -39,8 +39,8 @@ authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profil
 authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
     try {
       const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
-      res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
-      res.redirect('https://sentinelr-frontend.vercel.app/dashboard')
+      // res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
+      res.redirect(`https://sentinelr-frontend.vercel.app/dashboard?token=${token}`)
     } 
     catch (err) { 
       res.status(500).json({ message: 'Login via Google failed.', error: err.message })
