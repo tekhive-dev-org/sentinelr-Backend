@@ -15,7 +15,6 @@ const { sendOtpEmail } = require("../services/emailService");
 
 exports.createFirstSuperAdmin = async () => {
     try {
-
         const existing = await User.findOne({ where: { role: "SuperAdmin" } });
 
         if (!existing) {
@@ -36,7 +35,7 @@ exports.createFirstSuperAdmin = async () => {
         console.error("❌ Error creating first super admin:", error);
         throw error;
     }
-};
+}
 
 
 exports.login = async(req, res, next) => {
