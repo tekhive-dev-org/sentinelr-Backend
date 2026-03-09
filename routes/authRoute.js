@@ -42,7 +42,10 @@ authRouter.get('/auth/google/callback', passport.authenticate('google', { sessio
       res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
       res.redirect('https://sentinelr-frontend.vercel.app/dashboard')
     } 
-    catch (err) { res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`) }
+    catch (err) { 
+      res.status(500).json({ message: 'Login via Google failed.', error: err.message })
+      // res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`)
+    }
 })
 
 
