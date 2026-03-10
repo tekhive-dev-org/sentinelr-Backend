@@ -27,14 +27,14 @@ authRouter.put('/user/update-profile-picture', authenticate, upload.single('prof
 authRouter.put('/user/update-profile', authenticate, userController.updateUserProfile)
 authRouter.delete('/user/soft-delete', authenticate, userController.softDeleteAccount)
 
-// authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }) )
-authRouter.get('/auth/google', (req, res, next) => {
-  const redirectUri = req.query.redirect_uri || 'https://sentinelr-frontend.vercel.app/dashboard';
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-    state: JSON.stringify({ redirectUri })
-  })(req, res, next);
-})
+authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }) )
+// authRouter.get('/auth/google', (req, res, next) => {
+//   const redirectUri = req.query.redirect_uri || 'https://sentinelr-frontend.vercel.app/dashboard';
+//   passport.authenticate('google', {
+//     scope: ['profile', 'email'],
+//     state: JSON.stringify({ redirectUri })
+//   })(req, res, next);
+// })
 
 //SENDING JSON PAYLOAD
 // authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => { 
@@ -47,37 +47,37 @@ authRouter.get('/auth/google', (req, res, next) => {
 
 
 // REDIRECTING TO A FRONTEND
-// authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
-//     try {
-//       const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
-//       // res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
-//       res.redirect(`https://sentinelr-frontend.vercel.app/dashboard?token=${token}`)
-//     } 
-//     catch (err) { 
-//       res.status(500).json({ message: 'Login via Google failed.', error: err.message })
-//       // res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`)
-//     }
-// })
-
-authRouter.get('/auth/google/callback',
-  passport.authenticate('google', { session: false, failureMessage: true }),
-  (req, res) => {
+authRouter.get('/auth/google/callback', passport.authenticate('google', { session: false, failureMessage: true }), (req, res) => {
     try {
-      const token = jwt.sign(
-        { userId: req.user.id, userRole: req.user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '1d' }
-      );
-
-      const state = JSON.parse(req.query.state || '{}');
-      const redirectUri = state.redirectUri || 'https://sentinelr-frontend.vercel.app/dashboard';
-
-      res.redirect(`${redirectUri}?token=${token}`);
-    } catch (err) {
-      res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`);
+      const token = jwt.sign( { userId: req.user.id, userRole: req.user.role }, process.env.JWT_SECRET, { expiresIn: '1d' } )
+      // res.cookie('jwt', token, { httpOnly: true, secure: true, sameSite: 'None' })
+      res.redirect(`https://sentinelr-frontend.vercel.app/dashboard?token=${token}`)
+    } 
+    catch (err) { 
+      res.status(500).json({ message: 'Login via Google failed.', error: err.message })
+      // res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`)
     }
-  }
-);
+})
+
+// authRouter.get('/auth/google/callback',
+//   passport.authenticate('google', { session: false, failureMessage: true }),
+//   (req, res) => {
+//     try {
+//       const token = jwt.sign(
+//         { userId: req.user.id, userRole: req.user.role },
+//         process.env.JWT_SECRET,
+//         { expiresIn: '1d' }
+//       )
+
+//       const state = JSON.parse(req.query.state || '{}');
+//       const redirectUri = state.redirectUri || 'https://sentinelr-frontend.vercel.app/dashboard';
+
+//       res.redirect(`${redirectUri}?token=${token}`);
+//     } catch (err) {
+//       res.redirect(`https://sentinelr-frontend.vercel.app/login?error=${encodeURIComponent(err.message)}`);
+//     }
+//   }
+// )
 
 
 
