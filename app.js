@@ -10,6 +10,7 @@ const authRoute = require('./routes/authRoute')
 const familyRoute = require('./routes/familyRoute')
 const deviceRoute = require('./routes/deviceRoute')
 const locationRoute = require('./routes/locationRoute')
+const geofenceRoute = require('./routes/geofenceRoute')
 const socketHandler = require('./sockets')
 const cron = require("node-cron")
 const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJobs")
@@ -55,7 +56,7 @@ app.use(
 app.use(passport.initialize())
 
 app.use('/uploads', express.static('uploads'));
-app.use('/api', [authRoute, deviceRoute, familyRoute, locationRoute])
+app.use('/api', [authRoute, deviceRoute, familyRoute, locationRoute, geofenceRoute])
 
 app.get('/', (req, res) => { res.send('API is running !') })
 // console.log('Migrations path:', path.resolve(process.cwd(), 'migrations'));

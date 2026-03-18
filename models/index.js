@@ -4,8 +4,12 @@ const Family = require('./Family')
 const FamilyMember = require('./FamilyMember')
 const Device = require('./Device')
 const Location = require('./Location')
-const Subscription = require('./Subscription')
+const { Subscription, Plan } = require('./Subscription')
 const PairingCode = require('./PairingCode')
+const Geofence = require('./Geofence')
+const GeofenceUser = require('./GeofenceUser')
+const GeofenceState = require('./GeofenceState')
+const GeofenceEvent = require('./GeofenceEvent')
 const DevicePermission = require('./DevicePermission')
 
 
@@ -32,6 +36,27 @@ DevicePermission.belongsTo(Device, { foreignKey: 'deviceId' })
 PairingCode.belongsTo(Device, { foreignKey: 'deviceId', onDelete: 'CASCADE' })
 Device.hasOne(PairingCode, { foreignKey: 'deviceId' })
 
+Family.hasMany(Geofence, { foreignKey: 'familyId', onDelete: 'CASCADE' })
+Geofence.belongsTo(Family, { foreignKey: 'familyId' })
+
+Geofence.belongsToMany(User, { through: GeofenceUser, foreignKey: 'geofenceId', otherKey: 'userId', onDelete: 'CASCADE' })
+User.belongsToMany(Geofence, { through: GeofenceUser, foreignKey: 'userId', otherKey: 'geofenceId', onDelete: 'CASCADE' })
+
+Device.hasMany(GeofenceState, { foreignKey: 'deviceId', onDelete: 'CASCADE' })
+GeofenceState.belongsTo(Device, { foreignKey: 'deviceId' })
+
+Geofence.hasMany(GeofenceState, { foreignKey: 'geofenceId', onDelete: 'CASCADE' })
+GeofenceState.belongsTo(Geofence, { foreignKey: 'geofenceId' })
+
+Device.hasMany(GeofenceEvent, { foreignKey: 'deviceId', onDelete: 'CASCADE' })
+GeofenceEvent.belongsTo(Device, { foreignKey: 'deviceId' })
+
+Geofence.hasMany(GeofenceEvent, { foreignKey: 'geofenceId', onDelete: 'CASCADE' })
+GeofenceEvent.belongsTo(Geofence, { foreignKey: 'geofenceId' })
+
+Plan.hasMany(Subscription, { foreignKey: 'planId' })
+Subscription.belongsTo(Plan, { foreignKey: 'planId' })
 
 
-module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, DevicePermission, PairingCode }
+
+module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, Plan, DevicePermission, PairingCode, Geofence, GeofenceUser, GeofenceEvent }

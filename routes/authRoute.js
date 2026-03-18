@@ -33,6 +33,7 @@ authRouter.get('/auth/google', (req, res, next) => {
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     state: JSON.stringify({ redirectUri })
+    
   })(req, res, next);
 })
 

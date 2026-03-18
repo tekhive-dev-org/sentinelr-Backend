@@ -3,10 +3,10 @@ const { Op } = require('sequelize')
 const dbConnection = require('../config/db')
 
 
-const PLAN_DETAILS = {
-  person: { price: 10, durationDays: 30 },
-  familyOf5: { price: 25, durationDays: 30 },
-  familyOf10: { price: 40, durationDays: 30 }
+const subPlanDetails = {
+  fremium: { price: 10, durationDays: 30, deviceLimit: 2 },
+  personal: { price: 25, durationDays: 30, deviceLimit: 4 },
+  family: { price: 40, durationDays: 30, deviceLimit: null }
 }
 
 
@@ -16,12 +16,12 @@ exports.createOrRenewSubscription = async (req, res, next) => {
     const { type } = req.body
     const userId = req.user.id
 
-    if (!PLAN_DETAILS[type]) {
+    if (!subPlanDetails[type]) {
       await transaction.rollback()
       return res.status(400).json({ message: 'Invalid subscription type.' })
     }
 
-    const { price, durationDays } = PLAN_DETAILS[type]
+    const { price, durationDays } = subPlanDetails[type]
     const now = new Date()
     const endDate = new Date(now)
     endDate.setDate(now.getDate() + durationDays)
@@ -105,7 +105,7 @@ exports.changeSubscriptionType = async (req, res, next) => {
     const userId = req.user.id
     const { newType } = req.body
 
-    if (!PLAN_DETAILS[newType]) {
+    if (!subPlanDetails[newType]) {
       await transaction.rollback()
       return res.status(400).json({ message: 'Invalid subscription type.' })
     }
@@ -120,7 +120,7 @@ exports.changeSubscriptionType = async (req, res, next) => {
       return res.status(404).json({ message: 'No active subscription found.' })
     }
 
-    const { price, durationDays } = PLAN_DETAILS[newType]
+    const { price, durationDays } = subPlanDetails[newType]
     const now = new Date()
     const endDate = new Date(now)
     endDate.setDate(now.getDate() + durationDays)

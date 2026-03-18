@@ -6,8 +6,8 @@ const Subscription = dbConnection.define('Subscription', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  type: {
-    type: DataTypes.ENUM('person', 'familyOf5', 'familyOf10'),
+  planId: {
+    type: DataTypes.INTEGER,
     allowNull: false
   },
   status: {
@@ -26,6 +26,9 @@ const Subscription = dbConnection.define('Subscription', {
     type: DataTypes.FLOAT,
     allowNull: false
   },
+  paymentReference: {
+    type: DataTypes.STRING
+  },
   deletedAt: {
     type: DataTypes.DATE
   }
@@ -37,4 +40,23 @@ const Subscription = dbConnection.define('Subscription', {
 }
 )
 
-module.exports = Subscription
+const Plan = dbConnection.define('Plan', {
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  price: {
+    type: DataTypes.FLOAT,
+    allowNull: false
+  },
+  durationDays: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  deviceLimit: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  }
+})
+
+module.exports = { Subscription, Plan }

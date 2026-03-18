@@ -2,6 +2,7 @@ require('dotenv').config()
 const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
 const { Op } = require('sequelize');
+const geofenceService = require('../services/geofenceService')
 const { Location, FamilyMember, Family, Device, User, dbConnection } = require('../models')
 
 
@@ -25,6 +26,7 @@ exports.uploadLocation = catchAsync(async (req, res) => {
 
     await Location.create({ deviceId, latitude, longitude, accuracy, altitude, speed, timestamp: pingTime, source}, { transaction })
     await device.update({ lastLatitude: latitude, lastLongitude: longitude, lastSeen: pingTime, status: 'Online' }, { transaction })
+    await geofenceService.checkGeofences(device, latitude, longitude)
     await transaction.commit()
 
     res.status(200).json({ success: true, message: 'Ping received' })
