@@ -8,6 +8,7 @@ if (process.env.NODE_ENV === "production") {
         dialect: "postgres",
         logging: false,
         dialectOptions: {
+            statement_timeout: 0,
             ssl: {
                 require: true,
                 rejectUnauthorized: false
