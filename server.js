@@ -2,6 +2,7 @@ require('dotenv').config()
 const server = require('./app')
 const { dbConnection, Device } = require('./models')
 const authController = require('./controllers/authController')
+const subscriptionController = require('./controllers/subscriptionController')
 
 const dns = require('dns')
 dns.setDefaultResultOrder('ipv4first')
@@ -33,6 +34,7 @@ async function connectWithRetry(retries = 5) {
         // await dbConnection.sync()
         // await Device.sync()
         await authController.createFirstSuperAdmin()
+        await subscriptionController.seedPlans()
         server.listen(PORT, () => { console.log( `🚀 Server running on port ${PORT}` ) })
     }
     catch(error){
