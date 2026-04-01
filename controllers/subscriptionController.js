@@ -3,15 +3,65 @@ const { Subscription, Plan} = require('../models/Subscription')
 const { Op } = require('sequelize')
 const { dbConnection } = require('../models')
 const axios = require('axios')
+const crypto = require('crypto')
 
 
 
 exports.seedPlans = async () => {
   try {
     const plans = [
-      { displayName: 'Freemium Plan', monthlyPrice: 10, durationDays: 30, maxDevices: 2 },
-      { displayName: 'Personal Plan', monthlyPrice: 25, durationDays: 30, maxDevices: 4 },
-      { displayName: 'Family Plan', monthlyPrice: 40, durationDays: 30, maxDevices: null }
+      {
+        slug: 'free',
+        displayName: 'Freemium Plan',
+        description: 'Best for individuals testing their first plan.',
+        monthlyPrice: 0,
+        annualPrice: 0,
+        currency: 'NGN',
+        trialDays: 14,
+        features: [
+          'Full Security',
+          'Limited to just one device',
+          'Including intruder alerts & history'
+        ],
+        durationDays: 30,
+        maxDevices: 1,
+        featured: false
+      },
+      {
+        slug: 'personal',
+        displayName: 'Personal Plan',
+        description: 'Best for small families.',
+        monthlyPrice: 25,
+        annualPrice: 250,
+        currency: 'NGN',
+        features: [
+          'Full Security',
+          'Connect Up To 4 Devices',
+          'Tasks After a Session',
+          'Access To Prebuilt Templates'
+        ],
+        durationDays: 30,
+        maxDevices: 4,
+        featured: true
+      },
+      {
+        slug: 'family',
+        displayName: 'Family Plan',
+        description: 'Best for large families.',
+        monthlyPrice: 40,
+        annualPrice: null,
+        currency: 'NGN',
+        isCustomPricing: true,
+        features: [
+          'Full Security',
+          'Connect More Than 5 Devices',
+          'Including Intruder Alerts & History',
+          'Priority Email Support'
+        ],
+        durationDays: 30,
+        maxDevices: null,
+        featured: false
+      }
     ]
 
     for (const plan of plans) { await Plan.upsert(plan) }
@@ -55,7 +105,7 @@ exports.createOrRenewSubscription = async (req, res, next) => {
         planId,
         startDate: now,
         endDate,
-        amount: plan.price,
+        amount: plan.monthlyPrice,
         status: 'active',
         paymentReference
       },
@@ -216,8 +266,8 @@ exports.initiatePaystackPayment = async (req, res) => {
     if (!plan) { return res.status(400).json({ success: false, message: 'Invalid plan.' }) }
 
     let amount
-    if (billingCycle === 'monthly') { amount = plan.monthlyPrice } 
-    else if (billingCycle === 'annual') { amount = plan.annualPrice } 
+    if (billingCycle === 'monthly') { amount = parseInt(plan.monthlyPrice, 10) }
+    else if (billingCycle === 'annual') { amount = parseInt(plan.annualPrice, 10) } 
     else { return res.status(400).json({ success: false, message: 'Invalid billing cycle.' }) }
 
     const amountInKobo = amount * 100
@@ -227,6 +277,7 @@ exports.initiatePaystackPayment = async (req, res) => {
         email: req.user.email,
         amount: amountInKobo,
         callback_url: returnUrl,
+        channels: ['card', 'ussd', 'bank_transfer'],
         metadata: {
           cancel_url: cancelUrl,
           userId,
@@ -270,6 +321,7 @@ exports.verifyTransaction = async (req, res) => {
 
     const data = response.data
     if (!data.status || data.data.status !== 'success') {
+      console.log(data)
       return res.status(400).json({ success: false, message: 'Payment not successful' })
     }
 
@@ -364,15 +416,46 @@ exports.paystackWebhook = async (req, res) => {
       const reference = event.data.reference
       const userEmail = event.data.customer.email
 
-      const subscription = await Subscription.findOne({ where: { orderId: reference } })
-      if (subscription) {
-        subscription.status = 'active'
-        subscription.paymentReference = reference
-        subscription.paymentMethodType = event.data.authorization.card_type
-        subscription.paymentLast4 = event.data.authorization.last4
-        subscription.paymentBrand = event.data.authorization.brand
-        await subscription.save()
+      const user = await User.findOne({ where: { email: userEmail } })
+      if (!user) {
+        console.error('Webhook: user not found for email', userEmail)
+        return res.sendStatus(200)
       }
+
+      const planId = event.data.metadata?.planId
+      const plan = await Plan.findByPk(planId)
+      if (!plan) {
+        console.error('Webhook: plan not found for id', planId)
+        return res.sendStatus(200)
+      }
+
+      await Subscription.update({ status: 'expired' }, { where: { userId: user.id, status: 'active' } })
+
+      // const subscription = await Subscription.findOne({ where: { orderId: reference } })
+      // if (subscription) {
+      //   subscription.status = 'active'
+      //   subscription.paymentReference = reference
+      //   subscription.paymentMethodType = event.data.authorization.card_type
+      //   subscription.paymentLast4 = event.data.authorization.last4
+      //   subscription.paymentBrand = event.data.authorization.brand
+      //   await subscription.save()
+      // }
+
+      const subscription = await Subscription.create({
+          userId: user.id,
+          planId: plan.id,
+          startDate: now,
+          endDate,
+          amount: plan.monthlyPrice, // or annualPrice depending on billing cycle
+          status: 'active',
+          orderId: reference,
+          paymentReference: reference,
+          paymentMethodType: event.data.authorization.card_type,
+          paymentLast4: event.data.authorization.last4,
+          paymentBrand: event.data.authorization.brand
+      })
+
+      console.log('Webhook: subscription created', subscription.id)
     }
 
     res.sendStatus(200)
@@ -382,6 +465,13 @@ exports.paystackWebhook = async (req, res) => {
     res.sendStatus(500)
   }
 }
+
+
+exports.expireSubscriptions =  async()  => {
+  const now = new Date()
+  await Subscription.update({ status: 'expired' }, { where: { status: 'active', endDate: { [Op.lt]: now } } } )
+}
+
 
 
 
