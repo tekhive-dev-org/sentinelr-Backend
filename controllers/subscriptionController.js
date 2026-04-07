@@ -278,19 +278,9 @@ exports.initiatePaystackPayment = async (req, res) => {
         amount: amountInKobo,
         callback_url: returnUrl,
         channels: ['card', 'ussd', 'bank_transfer'],
-        metadata: {
-          cancel_url: cancelUrl,
-          userId,
-          planId,
-          billingCycle
-        }
+        metadata: { cancel_url: cancelUrl, userId, planId, billingCycle }
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' } }
     )
 
     const data = response.data
@@ -402,14 +392,9 @@ exports.chargeAuthorization = async (req, res) => {
 exports.paystackWebhook = async (req, res) => {
   try {
     const secret = process.env.PAYSTACK_SECRET_KEY
-    const hash = crypto.createHmac('sha512', secret)
-                     .update(JSON.stringify(req.body))
-                     .digest('hex')
+    const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex')
 
-    if (hash !== req.headers['x-paystack-signature']) {
-      return res.status(400).send('Invalid signature')
-    }
-
+    if (hash !== req.headers['x-paystack-signature']) { return res.status(400).send('Invalid signature') }
     const event = req.body
 
     if (event.event === 'charge.success') {
@@ -446,13 +431,14 @@ exports.paystackWebhook = async (req, res) => {
           planId: plan.id,
           startDate: now,
           endDate,
-          amount: plan.monthlyPrice, // or annualPrice depending on billing cycle
+          amount: event.data.metadata?.billingCycle == 'monthly' ? plan.monthlyPrice : plan.annualPrice,
           status: 'active',
           orderId: reference,
           paymentReference: reference,
           paymentMethodType: event.data.authorization.card_type,
           paymentLast4: event.data.authorization.last4,
-          paymentBrand: event.data.authorization.brand
+          paymentBrand: event.data.authorization.brand,
+          authorizationCode: event.data.authorization?.reusable ? event.data.authorization?.authorization_code : null
       })
 
       console.log('Webhook: subscription created', subscription.id)
