@@ -417,15 +417,9 @@ exports.paystackWebhook = async (req, res) => {
 
       await Subscription.update({ status: 'expired' }, { where: { userId: user.id, status: 'active' } })
 
-      // const subscription = await Subscription.findOne({ where: { orderId: reference } })
-      // if (subscription) {
-      //   subscription.status = 'active'
-      //   subscription.paymentReference = reference
-      //   subscription.paymentMethodType = event.data.authorization.card_type
-      //   subscription.paymentLast4 = event.data.authorization.last4
-      //   subscription.paymentBrand = event.data.authorization.brand
-      //   await subscription.save()
-      // }
+      const now = new Date()
+      const endDate = new Date(now)
+      endDate.setDate(now.getDate() + plan.durationDays)
 
       const subscription = await Subscription.create({
           userId: user.id,
