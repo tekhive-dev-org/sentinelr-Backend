@@ -50,8 +50,8 @@ GeofenceEvent.belongsTo(Device, { foreignKey: 'deviceId' })
 Geofence.hasMany(GeofenceEvent, { foreignKey: 'geofenceId', onDelete: 'CASCADE' })
 GeofenceEvent.belongsTo(Geofence, { foreignKey: 'geofenceId' })
 
-Plan.hasMany(Subscription, { foreignKey: 'planId' })
-Subscription.belongsTo(Plan, { foreignKey: 'planId' })
+Plan.hasMany(Subscription, { foreignKey: 'planId', sourceKey: 'slug' })
+Subscription.belongsTo(Plan, { foreignKey: 'planId', targetKey: 'slug' })
 
 
 

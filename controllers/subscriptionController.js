@@ -80,7 +80,7 @@ exports.createOrRenewSubscription = async (req, res, next) => {
     const { planId, paymentReference } = req.body
     const userId = req.user.id
 
-    const plan = await Plan.findByPk(planId)
+    const plan = await Plan.findOne({ where: { slug: planId } })
 
     if (!plan) {
       await transaction.rollback()
@@ -163,8 +163,8 @@ exports.getCurrentSubscription = async (req, res) => {
 
     const response = {
       id: subscription.id,
-      planId: subscription.Plan.slug || subscription.Plan.name.toLowerCase(),
-      planName: subscription.Plan.displayName || subscription.Plan.name,
+      planId: subscription.Plan.slug,
+      planName: subscription.Plan.displayName,
       status: subscription.status,
       billingCycle: subscription.billingCycle,
       currentPeriodStart: subscription.startDate,
@@ -409,7 +409,7 @@ exports.paystackWebhook = async (req, res) => {
       }
 
       const planId = event.data.metadata?.planId
-      const plan = await Plan.findByPk(planId)
+      const plan = await Plan.findOne({ where: { slug: planId } })
       if (!plan) {
         console.error('Webhook: plan not found for id', planId)
         return res.sendStatus(200)
@@ -429,7 +429,7 @@ exports.paystackWebhook = async (req, res) => {
 
       const subscription = await Subscription.create({
           userId: user.id,
-          planId: plan.id,
+          planId: plan.slug,
           startDate: now,
           endDate,
           amount: event.data.metadata?.billingCycle == 'monthly' ? plan.monthlyPrice : plan.annualPrice,

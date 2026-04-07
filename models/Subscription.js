@@ -7,7 +7,7 @@ const Subscription = dbConnection.define('Subscription', {
     allowNull: false
   },
   planId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: false
   },
   status: {
