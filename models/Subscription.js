@@ -78,7 +78,8 @@ const Subscription = dbConnection.define('Subscription', {
 const Plan = dbConnection.define('Plan', {
   slug: {
     type: DataTypes.STRING,
-    unique: true
+    unique: true,
+    // primaryKey: true
   },
   displayName: {
     type: DataTypes.STRING,
