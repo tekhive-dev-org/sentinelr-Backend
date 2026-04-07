@@ -391,6 +391,7 @@ exports.chargeAuthorization = async (req, res) => {
 
 exports.paystackWebhook = async (req, res) => {
   try {
+    console.log('Webhook received:', JSON.stringify(req.body, null, 2))
     const secret = process.env.PAYSTACK_SECRET_KEY
     const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex')
 
