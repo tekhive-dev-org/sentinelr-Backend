@@ -1,7 +1,7 @@
 require('dotenv').config()
 const { Subscription, Plan} = require('../models/Subscription')
 const { Op } = require('sequelize')
-const { dbConnection } = require('../models')
+const { dbConnection, User } = require('../models')
 const axios = require('axios')
 const crypto = require('crypto')
 
