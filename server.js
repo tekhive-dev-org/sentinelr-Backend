@@ -30,7 +30,9 @@ async function connectWithRetry(retries = 5) {
 ;(async() => {
     try{
         await connectWithRetry()
-        await dbConnection.sync({ alter: true })
+        if (process.env.NODE_ENV !== 'production') {
+          await dbConnection.sync({ alter: true })
+        }
         // await dbConnection.sync()
         // await Device.sync()
         await authController.createFirstSuperAdmin()
