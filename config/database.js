@@ -14,13 +14,12 @@ if (process.env.NODE_ENV === "production") {
                 rejectUnauthorized: false
             }
         },
-        pool: false
-        // pool: {
-        //     max: 5,    // switched from 10 to 5, so render doesnt hit Supabase's limits quickly
-        //     min: 0,
-        //     acquire: 60000,     // switch from 30000 to 60000, to wait longer
-        //     idle: 10000
-        // }
+        pool: {
+            max: 2,    // switched from 10 to 5, then from 5 to 2, so render doesnt hit Supabase's limits quickly
+            min: 0,
+            acquire: 60000,     // switch from 30000 to 60000, to wait longer
+            idle: 10000
+        }
     })
 } 
 else {
