@@ -6,7 +6,7 @@ let dbConnection;
 if (process.env.NODE_ENV === "production") {
     dbConnection = new Sequelize(process.env.DB_URL, {
         dialect: "postgres",
-        logging: false,
+        logging: console.log,
         dialectOptions: {
             statement_timeout: 0,
             ssl: {
@@ -14,12 +14,13 @@ if (process.env.NODE_ENV === "production") {
                 rejectUnauthorized: false
             }
         },
-        pool: {
-            max: 5,    // switched from 10 to 5, so render doesnt hit Supabase's limits quickly
-            min: 0,
-            acquire: 60000,     // switch from 30000 to 60000, to wait longer
-            idle: 10000
-        }
+        pool: false
+        // pool: {
+        //     max: 5,    // switched from 10 to 5, so render doesnt hit Supabase's limits quickly
+        //     min: 0,
+        //     acquire: 60000,     // switch from 30000 to 60000, to wait longer
+        //     idle: 10000
+        // }
     })
 } 
 else {
