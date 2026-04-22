@@ -87,7 +87,6 @@ exports.register = catchAsync(async (req, res, next) => {
 
     const existingUser = await User.findOne({ where: { email }, transaction: atomic })
     if (existingUser) {
-      await atomic.rollback()
       throw new AppError('Email is already registered', 409)
     }
 
@@ -107,7 +106,6 @@ exports.register = catchAsync(async (req, res, next) => {
 
     const existing = await Family.findOne({ where: { createdBy: newUser.id }, transaction: atomic })
     if (existing) {
-      await atomic.rollback()
       throw new AppError('You already created a family', 400,'FAMILY_ALREADY_EXISTS')
     }
 
@@ -132,7 +130,6 @@ exports.register = catchAsync(async (req, res, next) => {
     )
 
     await sendOtpEmail(newUser.email, otp)
-
     await atomic.commit()
 
     return res.status(201).json({
@@ -149,6 +146,9 @@ exports.register = catchAsync(async (req, res, next) => {
   catch (error) {
     await atomic.rollback()
     throw error
+  }
+  finally {
+    console.log('Transaction finished')
   }
 })
 
@@ -212,16 +212,11 @@ exports.resetPassword = async (req, res, next) => {
   try {
     const { email, otp, newPassword, confirmPassword } = req.body
 
-    // if (!req.user.verified) {
-    //         return res.status(403).json({
-    //             message: "You need to verify your account"
-    //         });
-    // }
-
     if (email && !otp && !newPassword && !confirmPassword) {
       const user = await User.findOne({ where: { email }, transaction: atomic })
 
       if (!user.verified) {
+            await atomic.rollback()
             return res.status(403).json({
                 message: "You have to verify your account to perform this action"
             })
@@ -282,11 +277,12 @@ exports.resetPassword = async (req, res, next) => {
         }
 
         if (matchedUser.otpExpiredAt < new Date()) {
-            await atomic.rollback();
+            await atomic.rollback()
             return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
         }
 
         if (newPassword !== confirmPassword) {
+            await atomic.rollback()
             return res.status(400).json({ message: 'Passwords do not match.' });
         }
 
@@ -294,6 +290,7 @@ exports.resetPassword = async (req, res, next) => {
             /^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
 
         if (!passwordRegex.test(newPassword)) {
+            await atomic.rollback()
             return res.status(400).json({
                 message:
                     'Password must contain at least one uppercase letter, one number, and one special character.'
@@ -320,6 +317,9 @@ exports.resetPassword = async (req, res, next) => {
     await atomic.rollback()
     console.error(error)
     next(error)
+  }
+  finally {
+    console.log('Transaction finished')
   }
 }
 
@@ -384,6 +384,7 @@ exports.sendOtpEmail = async (req, res) => {
       const { email } = req.body
 
       if (!email) {
+        await atomic.rollback()
         return res.status(400).json({
           error: "Authentication or email is required"
         })
@@ -395,7 +396,7 @@ exports.sendOtpEmail = async (req, res) => {
       })
 
       if (!user) {
-        await atomic.commit();
+        await atomic.rollback()
         return res.status(200).json({
           message: "If this email exists, an OTP has been sent"
         })
@@ -403,7 +404,7 @@ exports.sendOtpEmail = async (req, res) => {
     }
 
     if (user.verified) {
-      await atomic.commit();
+      await atomic.rollback()
       return res.status(400).json({
         message: "User already verified"
       })
@@ -435,6 +436,9 @@ exports.sendOtpEmail = async (req, res) => {
     if (atomic) await atomic.rollback()
     console.error("sendOtpEmail error:", err)
     return res.status(500).json({ error: "Failed to send OTP" })
+  }
+  finally{
+    console.log('sendOtpEmail transaction finished')
   }
 }
 
