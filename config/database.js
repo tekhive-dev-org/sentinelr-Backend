@@ -22,19 +22,25 @@ if (process.env.NODE_ENV === "production") {
         }
     })
 
-    dbConnection.connectionManager.on('acquire', (connection) => {
+    const pool = dbConnection.connectionManager.pool
+
+    pool.on('acquire', (connection) => {
         console.log(`Connection ${connection.processID || ''} 📫A-C-Q-U-I-R-E-D  A-T :📫 ${new Date().toISOString()}`)
     })
 
-    dbConnection.connectionManager.on('release', (connection) => {
+    pool.on('release', (connection) => {
         console.log(`Connection ${connection.processID || ''} 🚿R-E-L-E-A-S-E-D  A-T :🚿 ${new Date().toISOString()}`)
     })
 
-    dbConnection.connectionManager.on('connect', (connection) => {
+    pool.on('destroy', (connection) => {
+        console.log(`Connection ${connection.processID || ''} 💥D-E-S-T-R-O-Y-E-D  A-T :💥 ${new Date().toISOString()}`);
+    })
+
+    pool.on('connect', (connection) => {
         console.log(`Connection ${connection.processID || ''} 🔌C-O-N-N-E-C-T-E-D !🔌`)
     })
 
-    dbConnection.connectionManager.on('disconnect', (connection) => {
+    pool.on('disconnect', (connection) => {
         console.log(`Connection ${connection.processID || ''} ⛓️‍💥D-I-S-C-O-N-N-E-C-T-E-D !⛓️‍💥`)
     })
 }
