@@ -6,7 +6,7 @@ let dbConnection;
 if (process.env.NODE_ENV === "production") {
     dbConnection = new Sequelize(process.env.DB_URL, {
         dialect: "postgres",
-        logging: console.log,
+        logging: (msg) => console.log(`[Sequelize] ${msg}`),
         dialectOptions: {
             statement_timeout: 0,
             ssl: {
@@ -21,7 +21,23 @@ if (process.env.NODE_ENV === "production") {
             idle: 3000        // switch from 10000 to 3000, to keep idle connections alive longer
         }
     })
-} 
+
+    dbConnection.connectionManager.on('acquire', (connection) => {
+        console.log(`Connection ${connection.processID || ''} 📫A-C-Q-U-I-R-E-D  A-T :📫 ${new Date().toISOString()}`)
+    })
+
+    dbConnection.connectionManager.on('release', (connection) => {
+        console.log(`Connection ${connection.processID || ''} 🚿R-E-L-E-A-S-E-D  A-T :🚿 ${new Date().toISOString()}`)
+    })
+
+    dbConnection.connectionManager.on('connect', (connection) => {
+        console.log(`Connection ${connection.processID || ''} 🔌C-O-N-N-E-C-T-E-D !🔌`)
+    })
+
+    dbConnection.connectionManager.on('disconnect', (connection) => {
+        console.log(`Connection ${connection.processID || ''} ⛓️‍💥D-I-S-C-O-N-N-E-C-T-E-D !⛓️‍💥`)
+    })
+}
 else {
     dbConnection = new Sequelize(
         process.env.DB_NAME,
