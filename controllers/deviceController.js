@@ -64,6 +64,9 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
     await atomic.rollback()
     throw err
   }
+  finally {
+    console.log('Generate Pairing Code finished')
+  }
 })
 
 
@@ -110,6 +113,9 @@ exports.pairDevice = catchAsync(async (req, res) => {
     }
     throw error
   }
+  finally {
+    console.log('Pair Device finished')
+  }
 })
 
 exports.viewDevices = async (req, res, next) => {
@@ -128,6 +134,9 @@ exports.viewDevices = async (req, res, next) => {
   catch (error) {
     await atomic.rollback()
     throw error
+  }
+  finally {
+    console.log('View Devices finished')
   }
 }
 
@@ -366,6 +375,9 @@ exports.updateDevice = catchAsync(async (req, res) => {
     if (!transaction.finished) await transaction.rollback()
     throw err
   }
+  finally {
+    console.log('Update device finished')
+  }
 })
 
 exports.removeDevice = catchAsync(async (req, res) => {
@@ -392,6 +404,9 @@ exports.removeDevice = catchAsync(async (req, res) => {
   catch (err) {
     if (!transaction.finished) await transaction.rollback()
     throw err
+  }
+  finally {
+    console.log('Remove device finished')
   }
 })
 
@@ -423,6 +438,9 @@ exports.sendHeartbeat = async (req, res) => {
   catch (error) {
     await transaction.rollback();
     return res.status(500).json({ success: false, message: "Heartbeat failed", error: error.message })
+  }
+  finally {
+    console.log('Send heartbeat finished')
   }
 }
 
@@ -480,6 +498,9 @@ exports.toggleUnpairPairDevice = catchAsync(async (req, res) => {
   catch (error) {
     if (!transaction.finished) { await transaction.rollback() }
     throw error
+  }
+  finally {
+    console.log('Toggle Unpair/Pair inished')
   }
 })
 
