@@ -89,6 +89,7 @@ const requireParent = (req, res, next) => {
 
 
 const deviceAuth = async (req, res, next) => {
+  let token
   try {
     const authHeader = req.headers.authorization
 
@@ -96,7 +97,7 @@ const deviceAuth = async (req, res, next) => {
       return next(new AppError('Device authentication required', 401, 'DEVICE_AUTH_REQUIRED'))
     }
 
-    const token = authHeader.split(' ')[1]
+    token = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.DEVICE_SECRET)
     const device = await Device.findByPk(decoded.deviceId)
 
