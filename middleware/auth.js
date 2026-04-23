@@ -112,6 +112,7 @@ const deviceAuth = async (req, res, next) => {
     next()
   } 
   catch (err) {
+    console.log("DeviceAuth failed:", { url: req.originalUrl, token, devideId: req?.device.id, deviceName: req?.device.deviceName })
     return next(new AppError('Invalid or expired device token', 401, 'DEVICE_AUTH_INVALID'))
   }
 }
