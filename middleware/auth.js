@@ -1,3 +1,4 @@
+require('dotenv').config()
 const jwt = require('jsonwebtoken')
 const { User, Device } = require('../models')
 const { Op } = require('sequelize')
@@ -113,7 +114,7 @@ const deviceAuth = async (req, res, next) => {
     next()
   } 
   catch (err) {
-    console.log("DeviceAuth failed:", { url: req.originalUrl, token })
+    console.log("DeviceAuth failed:", { url: req.originalUrl, token, error: err.message })
     return next(new AppError('Invalid or expired device token', 401, 'DEVICE_AUTH_INVALID'))
   }
 }

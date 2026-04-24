@@ -170,7 +170,6 @@ exports.updateGeofence = catchAsync(async (req, res) => {
     if (!transaction.finished) { await transaction.rollback() }
     throw error
   }
-
 })
 
 exports.deleteGeofence = catchAsync(async (req, res) => {
