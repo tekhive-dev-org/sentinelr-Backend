@@ -95,6 +95,7 @@ exports.updateScreenTime = catchAsync(async (req, res) => {
   }
 })
 
+// More Like ADD Apps To Block
 exports.updateAppBlocking = catchAsync(async (req, res) => {
   const transaction = await dbConnection.transaction();
 
@@ -162,7 +163,7 @@ exports.toggleAppCategoryBlock = catchAsync(async (req, res) => {
 
     const controls = await ParentalControls.findOne({ where: { userId: childUserId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found", 404)
-N
+
     let categories = controls.appBlocking?.categoryBlocked || []
     const idx = categories.findIndex(c => c.category === category)
 
@@ -256,11 +257,11 @@ exports.updateWebFiltering = catchAsync(async (req, res) => {
     const controls = await ParentalControls.findOne({ where: { userId: childUserId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found", 404)
 
-    const newWebFiltering = {
-      enabled: enabled ?? controls.webFiltering?.enabled,
-      blockedSites: blockedSites.length ? blockedSites : controls.webFiltering?.blockedSites || [],
-      safeSearchEnabled: safeSearchEnabled ?? controls.webFiltering?.safeSearchEnabled,
-      categoryBlocked: categoryBlocked.length ? categoryBlocked : controls.webFiltering?.categoryBlocked || []
+    const newWebFiltering = {enabled: enabled ?? controls.webFiltering?.enabled, blockedSites: blockedSites?.length ? [...new Set([...(controls.webFiltering?.blockedSites || []), ...blockedSites])]
+            : controls.webFiltering?.blockedSites || [],
+        safeSearchEnabled: safeSearchEnabled ?? controls.webFiltering?.safeSearchEnabled,
+        categoryBlocked: categoryBlocked?.length ? [...new Set([...(controls.webFiltering?.categoryBlocked || []), ...categoryBlocked])]
+            : controls.webFiltering?.categoryBlocked || []
     }
 
     await controls.update({ webFiltering: newWebFiltering }, { transaction })
