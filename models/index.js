@@ -10,6 +10,8 @@ const Geofence = require('./Geofence')
 const GeofenceUser = require('./GeofenceUser')
 const GeofenceState = require('./GeofenceState')
 const GeofenceEvent = require('./GeofenceEvent')
+const ParentalControls = require('./ParentalControls')
+const ParentalControlActivity = require('./ParentalControlActivity')    
 
 
 User.hasMany(Device, { foreignKey: 'userId', onDelete: 'CASCADE' })
@@ -53,6 +55,17 @@ GeofenceEvent.belongsTo(Geofence, { foreignKey: 'geofenceId' })
 Plan.hasMany(Subscription, { foreignKey: 'planId', sourceKey: 'slug' })
 Subscription.belongsTo(Plan, { foreignKey: 'planId', targetKey: 'slug' })
 
+ParentalControls.belongsTo(User, { foreignKey: 'userId' })
+User.hasMany(ParentalControls, { foreignKey: 'userId' })
+
+ParentalControls.belongsTo(Device, { foreignKey: 'deviceId' })
+Device.hasOne(ParentalControls, { foreignKey: 'deviceId' })
+
+ParentalControlActivity.belongsTo(User, { foreignKey: 'userId' })
+User.hasMany(ParentalControlActivity, { foreignKey: 'userId' })
+
+ParentalControlActivity.belongsTo(Device, { foreignKey: 'deviceId' })
+Device.hasMany(ParentalControlActivity, { foreignKey: 'deviceId' })
 
 
-module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, Plan, PairingCode, Geofence, GeofenceUser, GeofenceEvent }
+module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, Plan, PairingCode, Geofence, GeofenceUser, GeofenceEvent, ParentalControls, ParentalControlActivity }
