@@ -105,7 +105,7 @@ const deviceAuth = async (req, res, next) => {
     const device = await Device.findByPk(decoded.deviceId)
 
     if (!device) {
-        console.log("E R R O R ⛓️‍💥💥⛓️‍💥💥⛓️‍💥💥", { url: req.originalUrl, token, error: err.message, deviceId: decoded.deviceId, deviceName: decoded.deviceName })
+        console.log("E R R O R ⛓️‍💥💥⛓️‍💥💥⛓️‍💥💥", { url: req.originalUrl, token, deviceId: decoded.deviceId, deviceName: decoded.deviceName })
         return next(new AppError('Device not found', 401, 'DEVICE_NOT_FOUND')) 
     }
 
