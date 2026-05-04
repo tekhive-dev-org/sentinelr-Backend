@@ -1,5 +1,5 @@
 const dbConnection = require('../config/database')
-const User = require('./User')
+const User = require('./User')(dbConnection)
 const Family = require('./Family')
 const FamilyMember = require('./FamilyMember')
 const Device = require('./Device')

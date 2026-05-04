@@ -6,7 +6,7 @@ const ParentalControlActivity = dbConnection.define('ParentalControlActivity', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   actingUserId: { type: DataTypes.INTEGER, allowNull: false },
   deviceUserId: { type: DataTypes.INTEGER, allowNull: false },
-  deviceId: { type: DataTypes.STRING, allowNull: false },
+  deviceId: { type: DataTypes.INTEGER, allowNull: false },
 
   type: { type: DataTypes.STRING, allowNull: false }, 
 

@@ -14,6 +14,7 @@ async function connectWithRetry(retries = 5) {
     try {
       await dbConnection.authenticate()
       const [result] = await dbConnection.query(`SELECT current_database(), current_user, inet_server_addr(), inet_server_port();`)
+      console.log("NODE_ENV:", process.env.NODE_ENV)
       console.log("🔍 DB INFO:", result)
       console.log("RAW DB URL:", process.env.DB_URL);
       console.log('✅ Database connected')
