@@ -1,6 +1,6 @@
 require('dotenv').config()
 const server = require('./app')
-const { dbConnection, Device } = require('./models')
+const { dbConnection } = require('./models')
 const authController = require('./controllers/authController')
 const subscriptionController = require('./controllers/subscriptionController')
 
@@ -13,6 +13,9 @@ async function connectWithRetry(retries = 5) {
   while (retries) {
     try {
       await dbConnection.authenticate()
+      const [result] = await dbConnection.query(`SELECT current_database(), current_user, inet_server_addr(), inet_server_port();`)
+      console.log("🔍 DB INFO:", result)
+      console.log("RAW DB URL:", process.env.DB_URL);
       console.log('✅ Database connected')
       return
     } 
