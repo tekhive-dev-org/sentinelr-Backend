@@ -9,6 +9,17 @@ dns.setDefaultResultOrder('ipv4first')
 
 const PORT = process.env.PORT
 
+process.on('unhandledRejection', async (err) => {
+  console.error('❌ Unhandled rejection:', err)
+
+  try {
+    await dbConnection.authenticate()
+    console.log('🔄 DB reconnected')
+  } catch (e) {
+    console.error('❌ DB reconnect failed')
+  }
+})
+
 async function connectWithRetry(retries = 5) {
   while (retries) {
     try {
