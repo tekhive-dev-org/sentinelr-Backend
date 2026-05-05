@@ -4,7 +4,7 @@ const http = require('http')
 const rateLimit = require('express-rate-limit')
 const passport = require('passport')
 require('./middleware/googleOauth')
-const { Server } = require('socket.io')
+// const { Server } = require('socket.io')
 const cors = require('cors')
 const authRoute = require('./routes/authRoute')
 const familyRoute = require('./routes/familyRoute')
@@ -12,7 +12,7 @@ const deviceRoute = require('./routes/deviceRoute')
 const locationRoute = require('./routes/locationRoute')
 const geofenceRoute = require('./routes/geofenceRoute')
 const subscriptionRoute = require('./routes/subscriptionRoute')
-const socketHandler = require('./sockets')
+// const socketHandler = require('./sockets')
 const cron = require("node-cron")
 const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJobs")
 // const path = require('path')
@@ -36,15 +36,15 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cors())
 
 const server = http.createServer(app)
-const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    }
-})
+// const io = new Server(server, {
+//     cors: {
+//         origin: '*',
+//         methods: ['GET', 'POST']
+//     }
+// })
 
-socketHandler(io)
-global.io = io
+// socketHandler(io)
+// global.io = io
 
 app.use(
   rateLimit({
