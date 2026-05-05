@@ -3,20 +3,6 @@ const { Sequelize } = require('sequelize')
 
 let dbConnection;
 
-// dbConnection = new Sequelize(process.env.DB_URL,
-//     {
-//         host: process.env.DB_HOST,
-//         logging: console.log,
-//         ssl: false,
-//         rejectUnauthorized: false,
-//         // logging: false,
-//         // dialect: 'mysql'
-//         // url: process.env.DATABASE_URL
-//         port: process.env.DB_PORT || 5432,
-//         dialect: 'postgres'
-//     }
-// )
-
 if (process.env.NODE_ENV === "production") {
     dbConnection = new Sequelize(process.env.DB_URL, {
         dialect: "postgres",
@@ -29,10 +15,10 @@ if (process.env.NODE_ENV === "production") {
             }
         },
         pool: {
-            max: 2,    // switched from 10 to 5, then from 5 to 2, so render doesnt hit Supabase's limits quickly
+            max: 5,    // switched from 10 to 5, then from 5 to 2, so render doesnt hit Supabase's limits quickly
             min: 0,
-            acquire: 60000,     // switch from 30000 to 60000, to wait longer
-            idle: 3000        // switch from 10000 to 3000, to keep idle connections alive longer
+            acquire: 30000,     // switch from 30000 to 60000, to wait longer
+            idle: 10000        // switch from 10000 to 3000, to keep idle connections alive longer
         }
     })
 }

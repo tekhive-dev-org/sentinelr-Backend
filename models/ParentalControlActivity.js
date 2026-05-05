@@ -1,12 +1,12 @@
 const { DataTypes } = require('sequelize')
-const dbConnection = require('../config/database')
 
 
-const ParentalControlActivity = dbConnection.define('ParentalControlActivity', {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  actingUserId: { type: DataTypes.INTEGER, allowNull: false },
-  deviceUserId: { type: DataTypes.INTEGER, allowNull: false },
-  deviceId: { type: DataTypes.INTEGER, allowNull: false },
+module.exports = (dbConnection) => {
+  const ParentalControlActivity = dbConnection.define('ParentalControlActivity', {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    actingUserId: { type: DataTypes.INTEGER, allowNull: false },
+    deviceUserId: { type: DataTypes.INTEGER, allowNull: false },
+    deviceId: { type: DataTypes.INTEGER, allowNull: false },
 
   type: { type: DataTypes.STRING, allowNull: false }, 
 
@@ -16,11 +16,12 @@ const ParentalControlActivity = dbConnection.define('ParentalControlActivity', {
   status: { type: DataTypes.STRING },
 
   timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
-}, 
-{
-  timestamps: true,
-  paranoid: true
-}
-)
+  }, 
+  {
+    timestamps: true,
+    paranoid: true
+  }
+  )
 
-module.exports = ParentalControlActivity
+  return ParentalControlActivity
+}

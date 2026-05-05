@@ -1,11 +1,12 @@
 const { DataTypes } = require('sequelize')
-const dbConnection = require('../config/database')
 
-const GeofenceState = dbConnection.define( "GeofenceState", {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
+
+module.exports = (dbConnection) => {
+  const GeofenceState = dbConnection.define("GeofenceState", {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
       },
       deviceId: {
         type: DataTypes.INTEGER,
@@ -33,6 +34,7 @@ const GeofenceState = dbConnection.define( "GeofenceState", {
         }
       ]
     }
-)
+  )
 
-module.exports =  GeofenceState
+  return GeofenceState
+}

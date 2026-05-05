@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize')
-const dbConnection = require('../config/database')
 
+
+module.exports = (dbConnection) => {
 const Subscription = dbConnection.define('Subscription', {
   userId: {
     type: DataTypes.INTEGER,
@@ -119,4 +120,5 @@ const Plan = dbConnection.define('Plan', {
   }
 })
 
-module.exports = { Subscription, Plan }
+  return { Subscription, Plan }
+}
