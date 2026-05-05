@@ -10,6 +10,8 @@ const Geofence = require('./Geofence')( dbConnection)
 const GeofenceUser = require('./GeofenceUser')( dbConnection)
 const GeofenceState = require('./GeofenceState')( dbConnection)
 const GeofenceEvent = require('./GeofenceEvent')( dbConnection)
+const Alert = require('./Alert')( dbConnection)
+
 
 
 User.hasMany(Device, { foreignKey: 'userId', onDelete: 'CASCADE' })
@@ -53,6 +55,13 @@ GeofenceEvent.belongsTo(Geofence, { foreignKey: 'geofenceId' })
 Plan.hasMany(Subscription, { foreignKey: 'planId', sourceKey: 'slug' })
 Subscription.belongsTo(Plan, { foreignKey: 'planId', targetKey: 'slug' })
 
+Alert.belongsTo(User, { foreignKey: "userId" })
+User.hasMany(Alert, { foreignKey: "userId" })
+
+Alert.belongsTo(Device, { foreignKey: "deviceId" })
+Device.hasMany(Alert, { foreignKey: "deviceId" })
 
 
-module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, Plan, PairingCode, Geofence, GeofenceUser, GeofenceEvent }
+
+
+module.exports = { dbConnection, User, Family, FamilyMember, Device, Location, Subscription, Plan, PairingCode, Geofence, GeofenceUser, GeofenceEvent, Alert }
