@@ -1,6 +1,6 @@
 require('dotenv').config()
 const server = require('./app')
-const { dbConnection } = require('./models')
+const { dbConnection, Device } = require('./models')
 const authController = require('./controllers/authController')
 const subscriptionController = require('./controllers/subscriptionController')
 
@@ -9,14 +9,21 @@ dns.setDefaultResultOrder('ipv4first')
 
 const PORT = process.env.PORT
 
+process.on('unhandledRejection', async (err) => {
+  console.error('❌ Unhandled rejection:', err)
+
+  try {
+    await dbConnection.authenticate()
+    console.log('🔄 DB reconnected')
+  } catch (e) {
+    console.error('❌ DB reconnect failed')
+  }
+})
+
 async function connectWithRetry(retries = 5) {
   while (retries) {
     try {
       await dbConnection.authenticate()
-      const [result] = await dbConnection.query(`SELECT current_database(), current_user, inet_server_addr(), inet_server_port();`)
-      console.log("NODE_ENV:", process.env.NODE_ENV)
-      console.log("🔍 DB INFO:", result)
-      console.log("RAW DB URL:", process.env.DB_URL);
       console.log('✅ Database connected')
       return
     } 
