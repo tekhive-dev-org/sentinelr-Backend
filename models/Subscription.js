@@ -3,10 +3,17 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) => {
   const Subscription = dbConnection.define('Subscription', {
+    // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    // userId: {
+    //   type: DataTypes.UUID,
+    //   allowNull: false
+    // },
+
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false
     },
+
     planId: {
       type: DataTypes.STRING,
       allowNull: false

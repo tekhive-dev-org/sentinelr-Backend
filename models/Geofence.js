@@ -3,15 +3,17 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) =>{
   const Geofence = dbConnection.define( "Geofence", {
-        id: {
-          type: DataTypes.INTEGER,
-          primaryKey: true,
-          autoIncrement: true
-        },
+        // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+
+        // familyId: {
+        //   type: DataTypes.UUID,
+        //   allowNull: false
+        // },
         familyId: {
           type: DataTypes.INTEGER,
           allowNull: false
         },
+        
         name: {
           type: DataTypes.STRING,
           allowNull: false

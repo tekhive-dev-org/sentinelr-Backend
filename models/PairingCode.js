@@ -3,11 +3,21 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) => {
   const PairingCode = dbConnection.define('PairingCode', {
+    // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     code: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true
     },
+    // deviceId: {
+    //   type: DataTypes.UUID,
+    //   allowNull: true
+    // },
+    // familyId: {
+    //   type: DataTypes.UUID,
+    //   allowNull: false
+    // },
+
     deviceId: {
       type: DataTypes.INTEGER,
       allowNull: true
@@ -16,6 +26,7 @@ module.exports = (dbConnection) => {
       type: DataTypes.INTEGER,
       allowNull: false
     },
+
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false

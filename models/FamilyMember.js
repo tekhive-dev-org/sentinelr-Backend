@@ -3,7 +3,18 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) => {
     const FamilyMember = dbConnection.define('FamilyMember',{
-        userId: {
+        // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+
+        // userId: {
+        //     type: DataTypes.UUID,
+        //     allowNull: false
+        // },
+        // familyId: {
+        //     type: DataTypes.UUID,
+        //     allowNull: false
+        // },
+
+         userId: {
             type: DataTypes.INTEGER,
             allowNull: false
         },
@@ -11,6 +22,7 @@ module.exports = (dbConnection) => {
             type: DataTypes.INTEGER,
             allowNull: false
         },
+
         relationship: {
             type: DataTypes.ENUM('Parent', 'Member'),
             allowNull: false

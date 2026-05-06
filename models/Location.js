@@ -3,6 +3,17 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) => {
     const Location = dbConnection.define('Location', {
+        // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+        // deviceId: {
+        //     type: DataTypes.UUID,
+        //     allowNull: false
+        // },
+
+        deviceId: {
+            type: DataTypes.INTEGER,
+            allowNull: false
+        },
+
         longitude: DataTypes.FLOAT,
         latitude: DataTypes.FLOAT,
         accuracy: { 
@@ -24,10 +35,6 @@ module.exports = (dbConnection) => {
         address: { 
             type: DataTypes.STRING, 
             allowNull: true 
-        },
-        deviceId: {
-            type: DataTypes.INTEGER,
-            allowNull: false
         },
         timestamp: {
             type: DataTypes.DATE,

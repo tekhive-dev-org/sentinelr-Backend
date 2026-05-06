@@ -4,6 +4,12 @@ const { DataTypes } = require('sequelize')
 module.exports = (dbConnection) => {
     const Alert = dbConnection.define('Alert', {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+
+    // deviceId: { type: DataTypes.UUID, allowNull: false },
+    // userId: { type: DataTypes.UUID, allowNull: false },
+    deviceId: { type: DataTypes.INTEGER, allowNull: false },
+    userId: { type: DataTypes.INTEGER, allowNull: false },
 
     type: { 
         type: DataTypes.ENUM("sos", "intruder", "geofence", "screen_time"), 
@@ -22,9 +28,6 @@ module.exports = (dbConnection) => {
         type: DataTypes.ENUM("low", "medium", "high"), 
         defaultValue: "medium" 
     },
-
-    deviceId: { type: DataTypes.INTEGER, allowNull: false },
-    userId: { type: DataTypes.INTEGER, allowNull: false },
 
     location: { type: DataTypes.JSONB }, 
 

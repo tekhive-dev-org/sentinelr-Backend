@@ -3,13 +3,14 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) => {
     const Device = dbConnection.define('Device', {
-        deviceName: {
-            type: DataTypes.STRING,
+        // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+        userId: {
+            type: DataTypes.INTEGER,
             allowNull: false
         },
 
-        userId: {
-            type: DataTypes.INTEGER,
+        deviceName: {
+            type: DataTypes.STRING,
             allowNull: false
         },
 

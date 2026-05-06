@@ -3,11 +3,16 @@ const { DataTypes } = require('sequelize')
 
 module.exports = (dbConnection) => {
   const GeofenceEvent = dbConnection.define("GeofenceEvent", {
-        id: {
-          type: DataTypes.INTEGER,
-          primaryKey: true,
-          autoIncrement: true
-        },
+        // id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+        // deviceId: {
+        //   type: DataTypes.UUID,
+        //   allowNull: false
+        // },
+        // geofenceId: {
+        //   type: DataTypes.UUID,
+        //   allowNull: false
+        // },
+
         deviceId: {
           type: DataTypes.INTEGER,
           allowNull: false
@@ -16,6 +21,7 @@ module.exports = (dbConnection) => {
           type: DataTypes.INTEGER,
           allowNull: false
         },
+
         eventType: {
           type: DataTypes.ENUM("ENTER", "EXIT"),
           allowNull: false
