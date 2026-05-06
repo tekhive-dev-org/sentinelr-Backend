@@ -1,6 +1,7 @@
 const { Op } = require("sequelize")
 const { Alert, User, Device, dbConnection } = require("../models")
 const catchAsync = require("../utils/catchAsync")
+const AppError = require("../utils/AppError")
 
 
 
@@ -23,7 +24,7 @@ exports.getAllAlerts = catchAsync(async (req, res) => {
 
     const { rows: alerts, count: total } = await Alert.findAndCountAll({
       where,
-      include: [{ model: User, attributes: ["id", "name"] },{ model: Device, attributes: ["id"] }],
+      include: [{ model: User, attributes: ["id", "userName"] },{ model: Device, attributes: ["id"] }],
       order: [["createdAt", "DESC"]],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -43,7 +44,7 @@ exports.getAllAlerts = catchAsync(async (req, res) => {
         priority: a.priority,
         deviceId: a.deviceId,
         userId: a.userId,
-        userName: a.User?.name,
+        userName: a.User?.userName,
         location: a.location ? {
           latitude: a.location.latitude,
           longitude: a.location.longitude,
@@ -67,7 +68,7 @@ exports.getSOSAlerts = catchAsync(async (req, res) => {
 
     const alerts = await Alert.findAll({
       where: { userId: loggedInUserId, type: "sos" },
-      include: [{ model: User, attributes: ["id", "name"] }],
+      include: [{ model: User, attributes: ["id", "userName"] }],
       order: [["createdAt", "DESC"]]
     })
 
@@ -85,7 +86,7 @@ exports.getSOSAlerts = catchAsync(async (req, res) => {
         priority: a.priority,
         deviceId: a.deviceId,
         userId: a.userId,
-        userName: a.User?.name,
+        userName: a.User?.userName,
         location: a.location,
         createdAt: a.createdAt,
         resolvedAt: a.resolvedAt
@@ -196,8 +197,8 @@ exports.triggerSOS = catchAsync(async (req, res) => {
 
   try {
     const deviceUserId = req.device.userId
-    const { location, message } = req.body
     const deviceId = req.device.id
+    const { location, message } = req.body
 
     const alert = await Alert.create({
       type: "sos",
@@ -244,6 +245,101 @@ exports.triggerSOS = catchAsync(async (req, res) => {
   } 
   catch (error) {
     if (!transaction.finished) await transaction.rollback()
+    throw error
+  }
+})
+
+exports.getIntruderAlerts = catchAsync(async (req, res) => {
+  try {
+    const loggedInUserId = req.user.id
+
+    const alerts = await Alert.findAll({
+      where: { userId: loggedInUserId, type: "intruder" },
+      include: [{ model: User, attributes: ["id", "userName"] }],
+      order: [["createdAt", "DESC"]]
+    })
+
+    const activeCount = alerts.filter(a => a.status === "active").length
+
+    res.status(200).json({
+      success: true,
+      activeIntruderCount: activeCount,
+      alerts: alerts.map(a => ({
+        id: a.id,
+        type: a.type,
+        title: a.title,
+        description: a.description,
+        status: a.status,
+        priority: a.priority,
+        deviceId: a.deviceId,
+        userId: a.userId,
+        userName: a.User?.userName,
+        location: a.location,
+        createdAt: a.createdAt,
+        resolvedAt: a.resolvedAt,
+        metadata: a.metadata // optional: store attempt details here
+      }))
+    })
+  } 
+  catch (error) {
+    throw error
+  }
+})
+
+exports.reportIntruderAttempt = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction();
+
+  try {
+    const deviceUserId = req.device.userId
+    const deviceId = req.device.id
+    const { attemptType, attemptCount, photo, timestamp } = req.body
+
+    const alert = await Alert.create({
+      type: "intruder",
+      title: "Intruder Alert",
+      description: `Intruder attempt detected: ${attemptType}`,
+      status: "active",
+      priority: "high",
+      deviceId,
+      userId: deviceUserId,
+      location: null, // optional if device provides location
+      createdAt: timestamp ? new Date(timestamp) : new Date(),
+      metadata: { attemptType, attemptCount, photo }
+    }, { transaction });
+
+    await transaction.commit();
+
+    try {
+      await ParentalControlActivity.create({
+        actingUserId: deviceUserId,
+        deviceUserId,
+        deviceId,
+        type: "report_intruder_attempt",
+        description: `Intruder attempt: ${attemptType}, count: ${attemptCount}`,
+        timestamp: new Date()
+      })
+    } 
+    catch (logError) {
+      console.error("Failed to log report_intruder_attempt activity:", logError)
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Intruder attempt reported successfully",
+      alert: {
+        id: alert.id,
+        type: alert.type,
+        status: alert.status,
+        priority: alert.priority,
+        deviceId: alert.deviceId,
+        userId: alert.userId,
+        metadata: alert.metadata,
+        createdAt: alert.createdAt
+      }
+    })
+  } 
+  catch (error) {
+    if (!transaction.finished) await transaction.rollback();
     throw error
   }
 })

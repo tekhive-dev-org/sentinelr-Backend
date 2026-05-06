@@ -90,22 +90,19 @@ const requireParent = (req, res, next) => {
 
 
 const deviceAuth = async (req, res, next) => {
-  let token
 
   try {
-    const authHeader = req.headers.authorization
+    const deviceToken = req.headers['x-device-token']
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) { 
+    if (!deviceToken) { 
         return next(new AppError('Device authentication required', 401, 'DEVICE_AUTH_REQUIRED'))
     }
 
-    token = authHeader.split(' ')[1]
-
-    const decoded = jwt.verify(token, process.env.DEVICE_SECRET)
+    const decoded = jwt.verify(deviceToken, process.env.DEVICE_SECRET)
     const device = await Device.findByPk(decoded.deviceId)
 
     if (!device) {
-        console.log("E R R O R ⛓️‍💥💥⛓️‍💥💥⛓️‍💥💥", { url: req.originalUrl, token, deviceId: decoded.deviceId, deviceName: decoded.deviceName })
+        console.log("E R R O R ⛓️‍💥💥⛓️‍💥💥⛓️‍💥💥", { url: req.originalUrl, token, deviceId: decoded.deviceId, deviceName: decoded.deviceName  || 'unknown' })
         return next(new AppError('Device not found', 401, 'DEVICE_NOT_FOUND')) 
     }
 
@@ -115,16 +112,17 @@ const deviceAuth = async (req, res, next) => {
     next()
   } 
   catch (err) {
-    console.log("Device Auth Error1 🚦🚦🚦🚦🚦🚦 :", { api: req.originalUrl, token, error: err.message })
+    console.log("Device Auth Error1 🚦🚦🚦🚦🚦🚦 :", { api: req.originalUrl, deviceToken, error: err.message })
     console.log("Device Auth Error2 🔌🔌🔌🔌🔌🔌 :", err)
 
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') { 
         return next(new AppError('Invalid or expired device token', 401, 'DEVICE_AUTH_INVALID'))
     }
 
-    return next(err)
+    return next(new AppError('Device authentication failed', 500, 'DEVICE_AUTH_FAILED'))
   }
 }
+
 
 
 

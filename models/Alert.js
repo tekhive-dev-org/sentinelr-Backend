@@ -23,7 +23,7 @@ module.exports = (dbConnection) => {
         defaultValue: "medium" 
     },
 
-    deviceId: { type: DataTypes.STRING, allowNull: false },
+    deviceId: { type: DataTypes.INTEGER, allowNull: false },
     userId: { type: DataTypes.INTEGER, allowNull: false },
 
     location: { type: DataTypes.JSONB }, 
