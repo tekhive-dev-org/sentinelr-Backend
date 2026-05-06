@@ -90,9 +90,10 @@ const requireParent = (req, res, next) => {
 
 
 const deviceAuth = async (req, res, next) => {
+  let deviceToken
 
   try {
-    const deviceToken = req.headers['x-device-token']
+    deviceToken = req.headers['x-device-token']
 
     if (!deviceToken) { 
         return next(new AppError('Device authentication required', 401, 'DEVICE_AUTH_REQUIRED'))
@@ -102,7 +103,7 @@ const deviceAuth = async (req, res, next) => {
     const device = await Device.findByPk(decoded.deviceId)
 
     if (!device) {
-        console.log("E R R O R ⛓️‍💥💥⛓️‍💥💥⛓️‍💥💥", { url: req.originalUrl, token, deviceId: decoded.deviceId, deviceName: decoded.deviceName  || 'unknown' })
+        console.log("E R R O R ⛓️‍💥💥⛓️‍💥💥⛓️‍💥💥", { url: req.originalUrl, deviceToken, deviceId: decoded.deviceId, deviceName: decoded.deviceName  || 'unknown' })
         return next(new AppError('Device not found', 401, 'DEVICE_NOT_FOUND')) 
     }
 

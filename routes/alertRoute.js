@@ -9,7 +9,7 @@ alertRouter.patch("/alerts/:alertId/resolve", authenticate, alertController.reso
 alertRouter.patch("/alerts/:alertId/dismiss", authenticate, alertController.dismissAlert)
 alertRouter.post("/alerts/sos/trigger", authenticate, deviceAuth, alertController.triggerSOS)
 alertRouter.get("/alerts/intruder", authenticate, alertController.getIntruderAlerts)
-alertRouter.post("/alerts/intruder/report", deviceAuth, alertController.reportIntruderAttempt)
+alertRouter.post("/alerts/intruder/report", authenticate, deviceAuth, alertController.reportIntruderAttempt)
 
 
 
