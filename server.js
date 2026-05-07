@@ -41,11 +41,12 @@ async function connectWithRetry(retries = 5) {
 ;(async() => {
     try{
         await connectWithRetry()
-        // if (process.env.NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
           await dbConnection.sync({ alter: true })
-        // }
+        }
         // await dbConnection.sync()
         // await Device.sync()
+        await dbConnection.sync()
         await authController.createFirstSuperAdmin()
         await subscriptionController.seedPlans()
         server.listen(PORT, () => { console.log( `🚀 Server running on port ${PORT}` ) })
