@@ -14,7 +14,7 @@ authRouter.post('/auth/login', authController.login)
 authRouter.post('/auth/register', authController.register)
 authRouter.post('/auth/reset-password', authController.resetPassword)
 authRouter.post('/auth/verify/otp', optionalAuth, authController.verifyOTP)
-authRouter.post('/auth/send/otp', optionalAuth, authController.sendOtpEmail)
+authRouter.post('/auth/send/otp', optionalAuth, authController.sendOtpEmailHandler)
 authRouter.get('/auth/logged-in-user', authenticate, authController.getLoggedInUserById)
 
 authRouter.get('/admin/verified', authenticate, authorizeAdmin, authController.getAllVerifiedUsers)

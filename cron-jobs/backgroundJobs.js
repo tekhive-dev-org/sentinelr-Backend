@@ -13,7 +13,7 @@ exports.autoExpireSubscriptions = async() => {
           endDate: { [Op.lt]: now },
         },
       }
-    );
+    )
 
     console.log("Expired subscriptions updated");
 }
@@ -30,7 +30,7 @@ exports.otpCleanUp = async() => {
           verified: false
         }
       }
-    );
+    )
 
     console.log("OTP cleanup complete");
     } 

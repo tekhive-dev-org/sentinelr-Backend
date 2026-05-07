@@ -7,7 +7,7 @@ const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
 const { Op } = require('sequelize')
 const axios = require("axios")
-const { sendOtpEmail } = require("../services/emailService");
+const { sendEmail } = require("../services/emailService")
 
 
 
@@ -129,7 +129,7 @@ exports.register = catchAsync(async (req, res, next) => {
       { expiresIn: '1h' }
     )
 
-    await sendOtpEmail(newUser.email, otp)
+    await sendEmail(newUser.email, "Your OTP", `<p>Your OTP is <b>${otp}</b></p>`)
     await atomic.commit()
 
     return res.status(201).json({
@@ -323,54 +323,7 @@ exports.resetPassword = async (req, res, next) => {
   }
 }
 
-// exports.sendOtpEmail = async (req, res) => {
-//   const atomic = await dbConnection.transaction()
-//   const OTP_LIFETIME = 10 * 60 * 1000
-//   const COOLDOWN = 2 * 60 * 1000
-
-//   try {
-//     const user = req.user;
-
-//     if (!user || !user.email) {
-//       return res.status(401).json({ error: "You need to register" });
-//     }
-
-//     if (user.verified) {
-//       return res.status(400).json({ message: "User already verified" })
-//     }
-
-//     if (user.otpExpiredAt) {
-//       const otpCreatedAt = user.otpExpiredAt.getTime() - OTP_LIFETIME
-//       if (Date.now() - otpCreatedAt < COOLDOWN) { 
-//         return res.status(429).json({ message: 'Please wait 2 minutes before requesting another OTP' })
-//       }
-//     }
-
-//     const otp = generateOtp()
-//     const hashedOtp = await hashOtp(otp)
-
-//     const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
-
-//     await user.update(
-//       { otp: hashedOtp, otpExpiredAt },
-//       { transaction: atomic }
-//     );
-//     await atomic.commit();
-
-//     await sendOtpEmail(user.email, otp);
-
-//     return res.status(200).json({ message: "OTP email sent" });
-//   } catch (err) {
-//     console.error("sendOtpEmailApi error:", err);
-
-//     // Rollback transaction if it exists
-//     if (atomic) await atomic.rollback();
-
-//     return res.status(500).json({ error: "Failed to send email" });
-//   }
-// }
-
-exports.sendOtpEmail = async (req, res) => {
+exports.sendOtpEmailHandler = async (req, res) => {
   const atomic = await dbConnection.transaction()
   const OTP_LIFETIME = 10 * 60 * 1000
   const COOLDOWN = 2 * 60 * 1000
@@ -385,36 +338,26 @@ exports.sendOtpEmail = async (req, res) => {
 
       if (!email) {
         await atomic.rollback()
-        return res.status(400).json({
-          error: "Authentication or email is required"
-        })
+        return res.status(400).json({ error: "Authentication or email is required" })
       }
 
-      user = await User.findOne({
-        where: { email },
-        transaction: atomic
-      })
-
+      user = await User.findOne({ where: { email }, transaction: atomic })
       if (!user) {
         await atomic.rollback()
-        return res.status(200).json({
-          message: "If this email exists, an OTP has been sent"
-        })
+        return res.status(200).json({ message: "If this email exists, an OTP has been sent" })
       }
     }
 
     if (user.verified) {
       await atomic.rollback()
-      return res.status(400).json({
-        message: "User already verified"
-      })
+      return res.status(400).json({ message: "User already verified" })
     }
 
     if (user.otpExpiredAt) {
       const otpCreatedAt = user.otpExpiredAt.getTime() - OTP_LIFETIME
 
       if (Date.now() - otpCreatedAt < COOLDOWN) {
-        await atomic.commit();
+        await atomic.commit()
         return res.status(429).json({ message: "Please wait before requesting another OTP" })
       }
     }
@@ -423,10 +366,10 @@ exports.sendOtpEmail = async (req, res) => {
     const hashedOtp = await hashOtp(otp)
     const otpExpiredAt = new Date(Date.now() + OTP_LIFETIME)
 
-    await user.update( { otp: hashedOtp, otpExpiredAt }, { transaction: atomic })
+    await user.update({ otp: hashedOtp, otpExpiredAt }, { transaction: atomic })
     await atomic.commit()
 
-    try{ await sendOtpEmail(user.email, otp) }
+    try{ await sendEmail(user.email, "Your OTP", `<p>Your OTP is <b>${otp}</b></p>`) }
     catch(emailErr){ console.error("Email failed:", emailErr) }
 
     return res.status(200).json({ message: "OTP email sent" })

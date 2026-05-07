@@ -22,14 +22,14 @@ const { autoExpireSubscriptions, otpCleanUp } = require("./cron-jobs/backgroundJ
 // Every Midnight
 cron.schedule("0 0 * * *", async () => { 
     console.log("⏳ Running auto-expire job...")
-    await autoExpireSubscriptions();
+    await autoExpireSubscriptions()
 })
 
 // Every Hour
 cron.schedule("0 * * * *", async () => {
-  console.log("🧹 Running OTP cleanup job...");
-  await otpCleanUp();
-});
+  console.log("🧹 Running OTP cleanup job...")
+  await otpCleanUp()
+})
 
 const app = express()
 app.use(express.json())
@@ -61,7 +61,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api', [authRoute, deviceRoute, familyRoute, locationRoute, geofenceRoute, subscriptionRoute, alertRoute])
 
 app.get('/', (req, res) => { res.send('API is running !') })
-// console.log('Migrations path:', path.resolve(process.cwd(), 'migrations'));
+// console.log('Migrations path:', path.resolve(process.cwd(), 'migrations'))
 
 app.use(errorHandler)
 
