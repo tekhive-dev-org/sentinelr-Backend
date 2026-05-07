@@ -2,6 +2,7 @@ const { Op } = require("sequelize")
 const { Alert, User, Device, dbConnection } = require("../models")
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/AppError")
+const { sendEmail } = require("../services/emailService")
 
 
 
@@ -227,6 +228,9 @@ exports.triggerSOS = catchAsync(async (req, res) => {
     catch (logError) {
       console.error("Failed to log trigger_sos activity:", logError)
     }
+
+    try{ await sendEmail(user.email, "Your OTP", `<p>Your OTP is <b>${otp}</b></p>`) }
+    catch(emailErr){ console.error("Email failed:", emailErr) }
 
     res.status(201).json({
       success: true,
