@@ -197,8 +197,10 @@ exports.triggerSOS = catchAsync(async (req, res) => {
   const transaction = await dbConnection.transaction()
 
   try {
-    const deviceUserId = req.device.userId
-    const deviceId = req.device.id
+    // const deviceUserId = req.device.userId
+    // const deviceId = req.device.id
+    const { deviceUserId } = req.query
+    const { deviceId } = req.query
     const { location, message } = req.body
 
     const alert = await Alert.create({
