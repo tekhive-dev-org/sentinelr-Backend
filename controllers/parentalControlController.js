@@ -214,7 +214,8 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
     if (!controls) throw new AppError("Parental controls not found", 404)
 
     let appBlocking = controls.appBlocking || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
-    let overrides = appBlocking.appOverrides || []
+    if (!Array.isArray(appBlocking.appOverrides)) { appBlocking.appOverrides = [] }
+    let overrides = appBlocking.appOverrides
 
     const idx = overrides.findIndex(app => app.packageName === packageName)
     if (idx >= 0) { overrides[idx].isBlocked = isBlocked } 
