@@ -22,7 +22,8 @@ exports.getParentalControls = catchAsync(async (req, res) => {
     const where = { userId }
     if (deviceId) where.deviceId = deviceId
 
-    const controls = await ParentalControls.findOne({ where, include: [ { model: Device, attributes: ["id", "deviceName"] } ], transaction })
+    // const controls = await ParentalControls.findOne({ where, include: [ { model: Device, attributes: ["id", "deviceName"] } ], transaction })
+      const controls = await ParentalControls.findOne({ where, include: [ { model: Device } ], transaction })
     // if (!controls) { throw new AppError("Parental controls not found", 404, "PARENTAL_CONTROLS_NOT_FOUND") }
 
     await transaction.commit()
