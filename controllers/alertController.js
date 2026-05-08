@@ -296,8 +296,9 @@ exports.reportIntruderAttempt = catchAsync(async (req, res) => {
   const transaction = await dbConnection.transaction();
 
   try {
-    const deviceUserId = req.device.userId
-    const deviceId = req.device.id
+    // const deviceUserId = req.device.userId
+    // const deviceId = req.device.id
+    const { deviceUserId, deviceId } = req.query
     const { attemptType, attemptCount, photo, timestamp } = req.body
 
     const alert = await Alert.create({
