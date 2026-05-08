@@ -215,13 +215,17 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
 
     let appBlocking = controls.appBlocking || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
     if (!Array.isArray(appBlocking.appOverrides)) { appBlocking.appOverrides = [] }
-    let overrides = appBlocking.appOverrides
+    // let overrides = appBlocking.appOverrides
 
-    const idx = overrides.findIndex(app => app.packageName === packageName)
-    if (idx >= 0) { overrides[idx].isBlocked = isBlocked } 
-    else { overrides.push({ packageName, isBlocked }) }
+    // const idx = overrides.findIndex(app => app.packageName === packageName)
+    // if (idx >= 0) { overrides[idx].isBlocked = isBlocked } 
+    // else { overrides.push({ packageName, isBlocked }) }
 
-    appBlocking.appOverrides = overrides
+    // appBlocking.appOverrides = overrides
+
+    const idx = appBlocking.appOverrides.findIndex(app => app.packageName === packageName)
+    if (idx >= 0) { appBlocking.appOverrides[idx].isBlocked = isBlocked } 
+    else { appBlocking.appOverrides.push({ packageName, isBlocked }) }
 
     await controls.update({ appBlocking }, { transaction })
     await transaction.commit()
