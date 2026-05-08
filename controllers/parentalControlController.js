@@ -22,9 +22,9 @@ exports.getParentalControls = catchAsync(async (req, res) => {
     const where = { userId }
     if (deviceId) where.deviceId = deviceId
 
-    // const controls = await ParentalControls.findOne({ where, include: [ { model: Device, attributes: ["id", "deviceName"] } ], transaction })
-      const controls = await ParentalControls.findOne({ where, include: [ { model: Device } ], transaction })
+    const controls = await ParentalControls.findOne({ where, include: [ { model: Device, attributes: ["id", "deviceName"] } ], transaction })
     // if (!controls) { throw new AppError("Parental controls not found", 404, "PARENTAL_CONTROLS_NOT_FOUND") }
+    if (!controls) { controls = await ParentalControls.create({ userId, deviceId, isMonitoring: false }) }
 
     await transaction.commit()
     res.status(200).json({
@@ -59,7 +59,7 @@ exports.updateScreenTime = catchAsync(async (req, res) => {
     const parentMembership = await FamilyMember.findOne({ where: { userId: loggedInUserId, relationship: "Parent" }, attributes: ["familyId"], transaction })
     if (!parentMembership) { throw new AppError("Only parents can update screen time", 403, "NOT_PARENT") }
 
-    const familyId = parentMembership.familyId;
+    const familyId = parentMembership.familyId
 
     const targetMembership = await FamilyMember.findOne({ where: { userId: childUserId, familyId }, attributes: ["userId"], transaction })
     if (!targetMembership) { throw new AppError("Target user is not in your family", 403, "NOT_SAME_FAMILY")}
