@@ -1,5 +1,5 @@
 const { Op } = require("sequelize")
-const { Alert, User, Device, dbConnection } = require("../models")
+const { Alert, User, Device, ParentalControlActivity, dbConnection } = require("../models")
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/AppError")
 const { sendEmail } = require("../services/emailService")
