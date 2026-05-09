@@ -230,9 +230,9 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
     // appBlocking.appOverrides = overrides
 
     // const idx = appBlocking.appOverrides.findIndex(app => app.packageName === packageName)
-    const idx = _.findIndex(appBlocking.appOverrides, { packageName })
-    if (idx >= 0) { appBlocking.appOverrides[idx].isBlocked = isBlocked } 
-    else { appBlocking.appOverrides.push({ packageName, isBlocked }) }
+    const idx = _.findIndex(overrides, { packageName })
+    if (idx >= 0) { overrides[idx].isBlocked = isBlocked } 
+    else { overrides.push({ packageName, isBlocked }) }
 
      _.set(appBlocking, "appOverrides", overrides)
 
