@@ -351,12 +351,18 @@ exports.removeBlockedWebsite = catchAsync(async (req, res) => {
     if (!controls) throw new AppError("Parental controls not found", 404)
 
     let webFiltering = controls.webFiltering || { enabled: false, blockedSites: [], safeSearchEnabled: false, categoryBlocked: [] }
-    let sites = webFiltering.blockedSites || []
+    // let sites = webFiltering.blockedSites || []
 
-    sites = sites.filter(site => site !== url)
-    webFiltering.blockedSites = sites;
+    // sites = sites.filter(site => site !== url)
+    // webFiltering.blockedSites = sites
 
-    await controls.update({ webFiltering }, { transaction })
+    webFiltering.blockedSites = (webFiltering.blockedSites || []).filter(site => site !== url)
+
+    controls.webFiltering = webFiltering
+    await controls.save({ transaction })
+
+
+    // await controls.update({ webFiltering }, { transaction })
     await transaction.commit()
 
     try {
