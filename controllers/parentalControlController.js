@@ -216,6 +216,8 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
 
     let appBlocking = _.cloneDeep(controls.appBlocking) || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
 
+    let overrides = _.get(appBlocking, "appOverrides", []);
+    if (!Array.isArray(overrides)) overrides = []
 
     // let appBlocking = controls.appBlocking || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
     // if (!Array.isArray(appBlocking.appOverrides)) { appBlocking.appOverrides = [] }
@@ -231,6 +233,8 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
     const idx = _.findIndex(appBlocking.appOverrides, { packageName })
     if (idx >= 0) { appBlocking.appOverrides[idx].isBlocked = isBlocked } 
     else { appBlocking.appOverrides.push({ packageName, isBlocked }) }
+
+     _.set(appBlocking, "appOverrides", overrides)
 
     // await controls.update({ appBlocking }, { transaction })
     controls.appBlocking = appBlocking
