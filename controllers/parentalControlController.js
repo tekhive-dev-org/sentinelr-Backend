@@ -1,7 +1,8 @@
-const { ParentalControls, FamilyMember, Device, ParentalControlActivity } = require("../models");
+const { ParentalControls, FamilyMember, Device, ParentalControlActivity } = require("../models")
 const AppError = require("../utils/AppError");
-const catchAsync = require("../utils/catchAsync");
-const dbConnection = require("../config/database");
+const catchAsync = require("../utils/catchAsync")
+const dbConnection = require("../config/database")
+const _ = require("lodash")
 
 
 exports.getParentalControls = catchAsync(async (req, res) => {
@@ -213,8 +214,11 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
     const controls = await ParentalControls.findOne({ where: { userId: childUserId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found", 404)
 
-    let appBlocking = controls.appBlocking || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
-    if (!Array.isArray(appBlocking.appOverrides)) { appBlocking.appOverrides = [] }
+    let appBlocking = _.cloneDeep(controls.appBlocking) || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
+
+
+    // let appBlocking = controls.appBlocking || { enabled: false, blockedApps: [], categoryBlocked: [], appOverrides: [] }
+    // if (!Array.isArray(appBlocking.appOverrides)) { appBlocking.appOverrides = [] }
     // let overrides = appBlocking.appOverrides
 
     // const idx = overrides.findIndex(app => app.packageName === packageName)
@@ -223,11 +227,14 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
 
     // appBlocking.appOverrides = overrides
 
-    const idx = appBlocking.appOverrides.findIndex(app => app.packageName === packageName)
+    // const idx = appBlocking.appOverrides.findIndex(app => app.packageName === packageName)
+    const idx = _.findIndex(appBlocking.appOverrides, { packageName })
     if (idx >= 0) { appBlocking.appOverrides[idx].isBlocked = isBlocked } 
     else { appBlocking.appOverrides.push({ packageName, isBlocked }) }
 
-    await controls.update({ appBlocking }, { transaction })
+    // await controls.update({ appBlocking }, { transaction })
+    controls.appBlocking = appBlocking
+    await controls.save({ transaction })
     await transaction.commit()
 
     try {
@@ -237,7 +244,7 @@ exports.toggleIndividualAppBlock = catchAsync(async (req, res) => {
         console.error("Failed to log toggle_individual_app_block activity:", logError)
     }
 
-    res.status(200).json({ success: true, message: "App block status updated" })
+    res.status(200).json({ success: true, message: "App block status updated", appBlocking })
   } 
   catch (error) {
     if (!transaction.finished) await transaction.rollback()
