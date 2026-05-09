@@ -372,7 +372,7 @@ exports.removeBlockedWebsite = catchAsync(async (req, res) => {
         console.error("Failed to log remove_blocked_website activity:", logError)
     }
 
-    res.status(200).json({ success: true, message: "Website removed from blocked list", blockedSites: sites })
+    res.status(200).json({ success: true, message: "Website removed from blocked list", blockedSites: webFiltering.blockedSites })
   } 
   catch (error) {
     if (!transaction.finished) await transaction.rollback()
