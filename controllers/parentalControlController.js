@@ -361,17 +361,23 @@ exports.removeBlockedWebsite = catchAsync(async (req, res) => {
     const controls = await ParentalControls.findOne({ where: { userId: childUserId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found", 404)
 
-    let webFiltering = controls.webFiltering || { enabled: false, blockedSites: [], safeSearchEnabled: false, categoryBlocked: [] }
+    let webFiltering = _.cloneDeep(controls.webFiltering) || { enabled: false, blockedSites: [], safeSearchEnabled: false, categoryBlocked: [] }
     // let sites = webFiltering.blockedSites || []
 
     // sites = sites.filter(site => site !== url)
     // webFiltering.blockedSites = sites
 
-    webFiltering.blockedSites = (webFiltering.blockedSites || []).filter(site => site !== url)
+    let sites = _.get(webFiltering, "blockedSites", [])
+    if (!Array.isArray(sites)) sites = []
+
+    _.remove(sites, site => site === url)
+
+    _.set(webFiltering, "blockedSites", sites)
+
+    // webFiltering.blockedSites = (webFiltering.blockedSites || []).filter(site => site !== url)
 
     controls.webFiltering = webFiltering
     await controls.save({ transaction })
-
 
     // await controls.update({ webFiltering }, { transaction })
     await transaction.commit()
@@ -383,7 +389,7 @@ exports.removeBlockedWebsite = catchAsync(async (req, res) => {
         console.error("Failed to log remove_blocked_website activity:", logError)
     }
 
-    res.status(200).json({ success: true, message: "Website removed from blocked list", blockedSites: webFiltering.blockedSites })
+    res.status(200).json({ success: true, message: "Website removed from blocked list", blockedSites: sites })
   } 
   catch (error) {
     if (!transaction.finished) await transaction.rollback()
