@@ -318,14 +318,17 @@ exports.addBlockedWebsite = catchAsync(async (req, res) => {
     const controls = await ParentalControls.findOne({ where: { userId: childUserId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found", 404)
 
-    let webFiltering = controls.webFiltering || { enabled: false, blockedSites: [], safeSearchEnabled: false, categoryBlocked: [] }
-    let sites = webFiltering.blockedSites || []
+    let webFiltering = _.cloneDeep(controls.webFiltering || { enabled: false, blockedSites: [], safeSearchEnabled: false, categoryBlocked: [] })
+    let sites = _.get(webFiltering, "blockedSites", [])
+    if (!Array.isArray(sites)) sites = []
 
     if (!sites.includes(url)) { sites.push(url) }
 
-    webFiltering.blockedSites = sites
+    _.set(webFiltering, "blockedSites", sites)
 
-    await controls.update({ webFiltering }, { transaction })
+    controls.webFiltering = webFiltering
+
+    await controls.save({ transaction })
     await transaction.commit()
 
     try {
