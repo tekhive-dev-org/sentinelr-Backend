@@ -558,12 +558,14 @@ exports.grantBonusTime = catchAsync(async (req, res) => {
     const controls = await ParentalControls.findOne({ where: { userId: childUserId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found for this device", 404)
 
-    let screenTime = controls.screenTime || { enabled: false, dailyLimit: 0, usedToday: 0, remaining: 0 }
-    const newRemaining = (screenTime.remaining || 0) + minutes
+    let screenTime = _.cloneDeep(controls.screenTime || { enabled: false, dailyLimit: 0, usedToday: 0, remaining: 0 })
+    let currentRemaining = _.get(screenTime, "remaining", 0)
+    let newRemaining = currentRemaining + minutes
 
-    screenTime.remaining = newRemaining
+    _.set(screenTime, "remaining", newRemaining)
 
-    await controls.update({ screenTime }, { transaction })
+    controls.screenTime = screenTime
+    await controls.save({ transaction })
     await transaction.commit()
 
     try {
