@@ -609,7 +609,7 @@ exports.getParentalControlActivity = catchAsync(async (req, res) => {
     })
     if (!targetMembership) throw new AppError("Target user is not in your family", 403)
 
-    const where = { deviceUserId: childUserId },
+    const where = { deviceUserId: childUserId }
     if (deviceId) where.deviceId = deviceId
 
     const activities = await ParentalControlActivity.findAll({
