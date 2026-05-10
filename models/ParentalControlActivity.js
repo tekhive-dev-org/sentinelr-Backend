@@ -8,20 +8,20 @@ module.exports = (dbConnection) => {
     deviceUserId: { type: DataTypes.INTEGER, allowNull: false },
     deviceId: { type: DataTypes.INTEGER, allowNull: false },
 
-  type: { type: DataTypes.STRING, allowNull: false }, 
+    type: { type: DataTypes.STRING, allowNull: false }, 
 
-  description: { type: DataTypes.STRING },
-  app: { type: DataTypes.STRING },
-  url: { type: DataTypes.STRING },
-  status: { type: DataTypes.STRING },
+    description: { type: DataTypes.STRING },
+    app: { type: DataTypes.STRING },
+    url: { type: DataTypes.STRING },
+    status: { type: DataTypes.STRING },
 
-  timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
-  }, 
-  {
-    timestamps: true,
-    paranoid: true
-  }
-  )
+    timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+    }, 
+    {
+      timestamps: true,
+      paranoid: true
+    }
+    )
 
-  return ParentalControlActivity
+    return ParentalControlActivity
 }
