@@ -92,7 +92,7 @@ exports.register = catchAsync(async (req, res, next) => {
 
     const otp = generateOtp()
     const hashedOtp = await hashOtp(otp)
-    const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
+    const otpExpiredAt = new Date(Date.now() + 1 * 60 * 1000)
 
     const newUser = await User.create({
       userName,
@@ -325,7 +325,7 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.sendOtpEmailHandler = async (req, res) => {
   const atomic = await dbConnection.transaction()
-  const OTP_LIFETIME = 10 * 60 * 1000
+  const OTP_LIFETIME = 60 * 60 * 1000
   const COOLDOWN = 2 * 60 * 1000
 
   try {
