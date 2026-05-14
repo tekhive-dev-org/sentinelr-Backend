@@ -92,7 +92,7 @@ exports.register = catchAsync(async (req, res, next) => {
 
     const otp = generateOtp()
     const hashedOtp = await hashOtp(otp)
-    const otpExpiredAt = new Date(Date.now() + 1 * 60 * 1000)
+    const otpExpiredAt = new Date(Date.now() + 10 * 60 * 1000)
 
     const newUser = await User.create({
       userName,
@@ -237,7 +237,7 @@ exports.resetPassword = async (req, res, next) => {
       )
       await atomic.commit()
 
-      // await sendEmailOTP(email, generatedOtp)
+      // await sendEmail(email, msg, html)
       await axios.post("https://techhive-backend-zmq5.onrender.com/api/send/email", {
         to: email,
         subject: "Your OTP",
@@ -325,7 +325,7 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.sendOtpEmailHandler = async (req, res) => {
   const atomic = await dbConnection.transaction()
-  const OTP_LIFETIME = 60 * 60 * 1000
+  const OTP_LIFETIME = 10 * 60 * 1000
   const COOLDOWN = 2 * 60 * 1000
 
   try {
@@ -353,6 +353,7 @@ exports.sendOtpEmailHandler = async (req, res) => {
       return res.status(400).json({ message: "User already verified" })
     }
 
+    //this means: "if an otp exists", because the user.otpExpiredAt value is set immediately the otp is created
     if (user.otpExpiredAt) {
       const otpCreatedAt = user.otpExpiredAt.getTime() - OTP_LIFETIME
 

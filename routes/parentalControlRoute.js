@@ -4,7 +4,7 @@ const { authenticate, deviceAuth } = require('../middleware/auth')
 const parentalControlRouter = express.Router()
 
 
-parentalControlRouter.get('/parental-controls/:userId', authenticate, parentalControlController.getParentalControls)
+parentalControlRouter.get('/parental-controls/:userId(\\d+)', authenticate, parentalControlController.getParentalControls)
 parentalControlRouter.put('/parental-controls/:childUserId/screentime/:deviceId', authenticate, parentalControlController.updateScreenTime)
 parentalControlRouter.put('/parental-controls/:childUserId/app-blocking/:deviceId', authenticate, parentalControlController.updateAppBlocking)
 parentalControlRouter.patch('/parental-controls/:childUserId/app-blocking/category/:deviceId', authenticate, parentalControlController.toggleAppCategoryBlock)
