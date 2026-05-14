@@ -781,8 +781,8 @@ exports.getDeviceStatus = catchAsync(async (req, res) => {
     const controls = await ParentalControls.findOne({ where: { userId, deviceId }, transaction })
     if (!controls) throw new AppError("Parental controls not found", 404)
 
-    // const activities = await ParentalControlActivity.findAll({ where: { deviceUserId:userId, deviceId }, order: [["createdAt", "DESC"]], limit: 10, transaction })
-    const activities = await ParentalControlActivity.findAll({ where: { deviceUserId:userId, deviceId }, limit: 10, transaction })
+    const activities = await ParentalControlActivity.findAll({ where: { deviceUserId:userId, deviceId }, order: [["createdAt", "DESC"]], limit: 10, transaction })
+    // const activities = await ParentalControlActivity.findAll({ where: { deviceUserId:userId, deviceId }, limit: 10, transaction })
 
     await transaction.commit()
     res.status(200).json({

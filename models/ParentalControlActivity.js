@@ -15,7 +15,7 @@ module.exports = (dbConnection) => {
     url: { type: DataTypes.STRING },
     status: { type: DataTypes.STRING },
 
-    timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+    // timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
     }, 
     {
       timestamps: true,
