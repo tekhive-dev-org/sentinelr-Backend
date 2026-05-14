@@ -5,7 +5,7 @@ const parentalControlRouter = express.Router()
 
 
 parentalControlRouter.get('/parental-controls/members', authenticate, parentalControlController.getParentalControlMembers)
-parentalControlRouter.get('/parental-controls/device-status', deviceAuth, parentalControlController.getDeviceStatus)
+parentalControlRouter.get('/parental-controls/:childUserId/device-status/:deviceId', deviceAuth, parentalControlController.getDeviceStatus)
 parentalControlRouter.get('/parental-controls/:userId', authenticate, parentalControlController.getParentalControls)
 parentalControlRouter.put('/parental-controls/:childUserId/screentime/:deviceId', authenticate, parentalControlController.updateScreenTime)
 parentalControlRouter.put('/parental-controls/:childUserId/app-blocking/:deviceId', authenticate, parentalControlController.updateAppBlocking)

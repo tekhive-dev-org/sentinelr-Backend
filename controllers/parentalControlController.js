@@ -771,7 +771,8 @@ exports.getDeviceStatus = catchAsync(async (req, res) => {
   const transaction = await dbConnection.transaction()
 
   try {
-    const { id: deviceId, userId } = req.device
+    const { childUserId: userId, deviceId } = req.params
+    // const { id: deviceId, userId } = req.device
 
     const device = await Device.findOne({ where: { id: deviceId, userId }, include: [{ model: User, attributes: ["id", "role"] }], transaction })
     if (!device) throw new AppError("Device not found", 404)
