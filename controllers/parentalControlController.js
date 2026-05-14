@@ -748,7 +748,7 @@ exports.getParentalControlMembers = catchAsync(async (req, res) => {
 
 
 
-    const members = await FamilyMember.findAll({ where: { familyId, relationship: "Child" }, attributes: ["userId"], transaction })
+    const members = await FamilyMember.findAll({ where: { familyId, relationship: "Member" }, attributes: ["userId"], transaction })
     const userIds = members.map(member => member.userId)
 
     const users = await User.findAll({ where: { id: userIds }, attributes: ["id", "userName", "profilePicture"],
