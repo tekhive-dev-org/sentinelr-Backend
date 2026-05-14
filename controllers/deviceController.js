@@ -38,7 +38,8 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
       await PairingCode.update({ status: 'Expired' }, { where: { assignedUserId: memberUserId, status: 'Pending'}, atomic })
 
       const code = createPairingCode()
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      // const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      const expiresAt = null
 
       await PairingCode.create({
         code,
@@ -47,7 +48,7 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
         deviceName,
         deviceType,
         platform,
-        expiresAt
+        // expiresAt
       }, { transaction: atomic })
 
       // deviceType is an ENUM, has to be verified
@@ -82,10 +83,10 @@ exports.pairDevice = catchAsync(async (req, res) => {
       throw new AppError('Pairing Code Is Invalid', 400, 'PAIRING_CODE_INVALID')
     }
 
-    if (pairingCode.expiresAt < new Date()) {
-      await pairingCode.update({ status: 'Expired' }, { transaction })
-      throw new AppError('Pairing Code Expired', 400, 'PAIRING_CODE_INVALID')
-    }
+    // if (pairingCode.expiresAt < new Date()) {
+    //   await pairingCode.update({ status: 'Expired' }, { transaction })
+    //   throw new AppError('Pairing Code Expired', 400, 'PAIRING_CODE_INVALID')
+    // }
 
     const alreadyPaired = await Device.findOne({ where: { userId: pairingCode.assignedUserId, pairStatus: 'Paired' }, transaction, lock: transaction.LOCK.UPDATE })
     if (alreadyPaired) { throw new AppError('Device already paired for this user', 400, 'DEVICE_ALREADY_PAIRED') }
