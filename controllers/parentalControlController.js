@@ -716,41 +716,52 @@ exports.getParentalControlMembers = catchAsync(async (req, res) => {
     if (!parentMembership) throw new AppError("Only parents can view family members", 403);
 
     const familyId = parentMembership.familyId
-    const members = await FamilyMember.findAll({
-      where: { familyId, relationship: "Child" },
-      include: [
-        {
-          model: User,
-          attributes: ["id", "userName", "profilePicture"],
-          include: [
-            {
-              model: Device,
-              attributes: ["id", "deviceName", "type", "status", "batteryLevel"]
-            }
-          ]
-        }
-      ],
-      transaction
-    })
+    // const members = await FamilyMember.findAll({
+    //   where: { familyId, relationship: "Child" },
+    //   include: [
+    //     {
+    //       model: User,
+    //       attributes: ["id", "userName", "profilePicture"],
+    //       include: [
+    //         {
+    //           model: Device,
+    //           attributes: ["id", "deviceName", "type", "status", "batteryLevel"]
+    //         }
+    //       ]
+    //     }
+    //   ],
+    //   transaction
+    // })
 
-    const formatted = members.map(m => ({
-      userId: m.User.id,
-      name: m.User.userName,
-      avatar: m.User.profilePicture,
-      devices: m.User.Devices.map(d => ({
-        deviceId: d.id,
-        name: d.deviceName,
-        type: d.type,
-        status: d.status,
-        batteryLevel: d.batteryLevel
-      }))
-    }))
+    // const formatted = members.map(m => ({
+    //   userId: m.User.id,
+    //   name: m.User.userName,
+    //   avatar: m.User.profilePicture,
+    //   devices: m.User.Devices.map(d => ({
+    //     deviceId: d.id,
+    //     name: d.deviceName,
+    //     type: d.type,
+    //     status: d.status,
+    //     batteryLevel: d.batteryLevel
+    //   }))
+    // }))
+
+
+
+    const members = await FamilyMember.findAll({ where: { familyId, relationship: "Child" }, attributes: ["userId"], transaction })
+    const userIds = members.map(member => member.userId)
+
+    const users = await User.findAll({ where: { id: userIds }, attributes: ["id", "userName", "profilePicture"],
+                          include: [ { model: Device, attributes: ["id", "deviceName", "type", "status", "batteryLevel" ]} ], transaction })
+
+    const formatted = users.map(user => ({ userId: user.id, name: user.userName, avatar: user.profilePicture,
+      devices: user.Devices.map(device => ({ deviceId: device.id, name: device.deviceName, type: device.type, status: device.status, batteryLevel: device.batteryLevel })) }))
 
     await transaction.commit()
     res.status(200).json({ success: true, members: formatted })
   } 
   catch (error) {
-    if (!transaction.finished) await transaction.rollback();
+    if (!transaction.finished) await transaction.rollback()
     throw error
   }
 })
