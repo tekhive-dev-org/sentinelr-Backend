@@ -1,4 +1,4 @@
-const { ParentalControls, FamilyMember, Device, ParentalControlActivity } = require("../models")
+const { ParentalControls, FamilyMember, Device, ParentalControlActivity, User } = require("../models")
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync")
 const dbConnection = require("../config/database")
