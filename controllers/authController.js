@@ -215,16 +215,16 @@ exports.resetPassword = async (req, res, next) => {
     if (email && !otp && !newPassword && !confirmPassword) {
       const user = await User.findOne({ where: { email }, transaction: atomic })
 
+      if (!user) {
+        await atomic.rollback()
+        return res.status(404).json({ message: 'User not found.' })
+      }
+
       if (!user.verified) {
             await atomic.rollback()
             return res.status(403).json({
                 message: "You have to verify your account to perform this action"
             })
-      }
-
-      if (!user) {
-        await atomic.rollback()
-        return res.status(404).json({ message: 'User not found.' })
       }
 
       const generatedOtp = generateOtp()
@@ -300,7 +300,7 @@ exports.resetPassword = async (req, res, next) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10)
 
         await matchedUser.update(
-            { password: hashedPassword, otp: null, otpExpiredAt: null },
+            { password: newPassword, otp: null, otpExpiredAt: null },
             { transaction: atomic }
         );
 
