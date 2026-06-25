@@ -26,6 +26,9 @@ module.exports = (dbConnection) => {
     {
         paranoid: true,
         timestamps: true,
+        indexes: [
+            { fields: ['createdBy'] }
+        ]
         // deletedAt: 'deletedAt'
     }
     )

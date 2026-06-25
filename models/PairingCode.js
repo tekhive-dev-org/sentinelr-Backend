@@ -57,7 +57,14 @@ module.exports = (dbConnection) => {
       allowNull: false,
       defaultValue: 'Pending'
     }
-  }, { timestamps: true })
+  }, 
+  { 
+    timestamps: true,
+
+    indexes:[
+      { fields: ['code', 'status'] },
+    ]
+  })
 
 
 

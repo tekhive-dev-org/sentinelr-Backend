@@ -26,16 +26,16 @@ exports.generatePairingCode = catchAsync(async (req, res) => {
         throw new AppError('Only parents can generate pairing codes', 403, 'PARENT_ROLE_REQUIRED')
       }
 
-      const family = await Family.findOne({ where: { createdBy: parentId }, atomic })
+      const family = await Family.findOne({ where: { createdBy: parentId }, transaction: atomic })
       if (!family) { throw new AppError('No family found', 404, 'FAMILY_NOT_FOUND') }
       
-      const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: memberUserId }, atomic })
+      const familyMember = await FamilyMember.findOne({ where: { familyId: family.id, userId: memberUserId }, transaction: atomic })
       if (!familyMember) { throw new AppError('Not a member of the family', 403, 'NOT_IN_FAMILY')}
 
-      const alreadyPaired = await Device.findOne({ where: { userId: memberUserId, pairStatus: 'Paired'}, atomic })
+      const alreadyPaired = await Device.findOne({ where: { userId: memberUserId, pairStatus: 'Paired'}, transaction: atomic })
       if (alreadyPaired) { throw new AppError('Member already has a paired device', 400, 'DEVICE_ALREADY_PAIRED') }
 
-      await PairingCode.update({ status: 'Expired' }, { where: { assignedUserId: memberUserId, status: 'Pending'}, atomic })
+      await PairingCode.update({ status: 'Expired' }, { where: { assignedUserId: memberUserId, status: 'Pending'}, transaction: atomic })
 
       const code = createPairingCode()
       // const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
@@ -120,20 +120,20 @@ exports.pairDevice = catchAsync(async (req, res) => {
 })
 
 exports.viewDevices = async (req, res, next) => {
-  const atomic = await dbConnection.transaction()
+  // const atomic = await dbConnection.transaction()
   try {
     const userId = req.user.id
     const devices = await Device.findAll({ where: { userId } })
 
     if (!devices.length) {
-      await transaction.rollback()
+      // await transaction.rollback()
       throw new AppError('No devices found', 404, 'NO_DEVICES_FOUNND')
     }
 
     res.status(200).json({ devices })
   } 
   catch (error) {
-    await atomic.rollback()
+    // await atomic.rollback()
     throw error
   }
   finally {

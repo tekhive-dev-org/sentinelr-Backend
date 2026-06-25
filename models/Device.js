@@ -126,7 +126,8 @@ module.exports = (dbConnection) => {
         indexes: [
             { unique: true, fields: ['userId'], where: { deletedAt: null } },
             { fields: ['status'] },
-            { fields: ['lastSeen'] }
+            { fields: ['lastSeen'] },
+            { fields: ['userId', 'pairStatus'] }
         ]
     })
 

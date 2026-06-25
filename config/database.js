@@ -16,12 +16,13 @@ if (process.env.NODE_ENV === "production") {
             }
         },
         pool: {
-            max: 10,    // switched from 10 to 5, then from 5 to 2, so render doesnt hit Supabase's limits quickly
+            max: 5,    // switched from 10 to 5, then from 5 to 2, so render doesnt hit Supabase's limits quickly
             min: 0,
             acquire: 30000,     // switch from 30000 to 60000, to wait longer
             idle: 10000,        // switch from 10000 to 3000, to keep idle connections alive longer
             evict: 10000
         }
+        
     })
 }
 else {

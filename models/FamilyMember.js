@@ -44,7 +44,8 @@ module.exports = (dbConnection) => {
                 where: {
                     deletedAt: null
                 }
-            }
+            },
+            { fields: ['familyId', 'userId'] }
         ]
     }
     )
