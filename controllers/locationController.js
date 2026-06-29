@@ -10,24 +10,24 @@ const THROTTLE = parseInt(process.env.LOCATION_THROTTLE_MS) || 5000
 
 exports.uploadLocation = catchAsync(async (req, res) => {
   const deviceId = req.device.id
-  const transaction = await dbConnection.transaction()
 
   const { latitude, longitude, accuracy, altitude, speed, timestamp, source } = req.body
   if (!latitude || !longitude) { throw new AppError('Latitude and longitude required', 400) }
 
-  const device = await Device.findByPk(deviceId, { transaction })
+  const device = await Device.findByPk(deviceId)
   if (!device) { throw new AppError('Device not found', 404) }
 
   // Throttle before opening transaction
   if (device.lastSeen && Date.now() - device.lastSeen.getTime() < THROTTLE) {return res.status(200).json({ success: true }) }
+  const transaction = await dbConnection.transaction()
 
   try {
     const pingTime = timestamp ? new Date(timestamp) : new Date()
 
     await Location.create({ deviceId, latitude, longitude, accuracy, altitude, speed, timestamp: pingTime, source}, { transaction })
     await device.update({ lastLatitude: latitude, lastLongitude: longitude, lastSeen: pingTime, status: 'Online' }, { transaction })
-    await geofenceService.checkGeofences(device, latitude, longitude)
     await transaction.commit()
+    await geofenceService.checkGeofences(device, latitude, longitude)
 
     res.status(200).json({ success: true, message: 'Ping received' })
   } 

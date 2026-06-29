@@ -120,7 +120,7 @@ const deviceAuth = async (req, res, next) => {
         return next(new AppError('Invalid or expired device token', 401, 'DEVICE_AUTH_INVALID'))
     }
 
-    return next(new AppError('Device authentication failed', 500, 'DEVICE_AUTH_FAILED'))
+    return next(new AppError('Device lookup failed', 500, 'DEVICE_LOOKUP_FAILED'))
   }
 }
 

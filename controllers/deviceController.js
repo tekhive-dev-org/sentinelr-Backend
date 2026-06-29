@@ -412,32 +412,21 @@ exports.removeDevice = catchAsync(async (req, res) => {
 })
 
 exports.sendHeartbeat = async (req, res) => {
-  const transaction = await dbConnection.transaction()
-
   try {
-    const deviceId = req.device.id
     const { batteryLevel, isCharging, deviceName, deviceModel, brand, osVersion, appVersion, timestamp } = req.body
 
-    const device = await Device.findByPk(deviceId, { transaction });
-
-    if (!device) {
-      await transaction.rollback();
-      return res.status(404).json({ success: false, message: "Device not found" })
-    }
-
     // ✅ Update device telemetry
-    await device.update({ lastSeen: new Date(timestamp || Date.now()), batteryLevel, isCharging, deviceName, deviceModel,
+    const [updatedRows] = await device.update({ lastSeen: new Date(timestamp || Date.now()), batteryLevel, isCharging, deviceName, deviceModel,
         brand,
         osVersion,
         appVersion,
         status: "online"
-      }, { transaction })
+      }, { where: { id: req.device.id } })
 
-    await transaction.commit();
+    if (updatedRows === 0) { return res.status(404).json({ success: false, message: "Device not found" }) }
     return res.status(200).json({ success: true, serverTime: new Date().toISOString() })
   } 
   catch (error) {
-    await transaction.rollback();
     return res.status(500).json({ success: false, message: "Heartbeat failed", error: error.message })
   }
   finally {
