@@ -9,5 +9,6 @@ familyRouter.post('/family/create-family', authenticate, requireParent, familyCo
 familyRouter.post('/family/create-child', authenticate, requireParent, familyController.createChildUser)
 familyRouter.post('/family/add-member', authenticate, requireParent, familyController.addMemberToFamily)
 familyRouter.get('/family/my-family/members', authenticate, familyController.viewFamilyMembers)
+familyRouter.delete('/family/remove-member', authenticate, requireParent, familyController.removeMemberFromFamily)
 
 module.exports = familyRouter

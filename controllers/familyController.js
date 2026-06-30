@@ -1,7 +1,7 @@
 require('dotenv').config()
 const catchAsync = require('../utils/catchAsync')
 const AppError = require('../utils/AppError')
-const { dbConnection, Family, FamilyMember, User } = require('../models')
+const { dbConnection, Family, FamilyMember, User, Device,  } = require('../models')
 
 
 exports.createFamily = catchAsync(async (req, res, next) => {
@@ -116,3 +116,106 @@ exports.createChildUser = catchAsync(async (req, res, next) => {
     throw error
   }
 })
+
+
+exports.removeMemberFromFamily = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction();
+
+  try {
+    const { familyId, userId } = req.body;
+    const parentId = req.user.id;
+
+    if (!req.user.verified) {
+      throw new AppError(
+        "Please verify your account",
+        400,
+        "ACCOUNT_NOT_VERIFIED"
+      );
+    }
+
+    if (req.user.role !== "Parent") {
+      throw new AppError(
+        "Only parents can remove family members",
+        403,
+        "PARENT_ROLE_REQUIRED"
+      );
+    }
+
+    const family = await Family.findByPk(familyId, {
+      transaction,
+    });
+
+    if (!family) {
+      throw new AppError(
+        "Family not found",
+        404,
+        "FAMILY_NOT_FOUND"
+      );
+    }
+
+    if (family.createdBy !== parentId) {
+      throw new AppError(
+        "You are not allowed to modify this family",
+        403,
+        "NOT_FAMILY_OWNER"
+      );
+    }
+
+    if (userId == parentId) {
+      throw new AppError(
+        "You cannot remove yourself from your own family",
+        400,
+        "CANNOT_REMOVE_SELF"
+      );
+    }
+
+    const member = await FamilyMember.findOne({
+      where: {
+        familyId,
+        userId,
+      },
+      transaction,
+    });
+
+    if (!member) {
+      throw new AppError(
+        "Family member not found",
+        404,
+        "FAMILY_MEMBER_NOT_FOUND"
+      );
+    }
+
+    // Soft delete the family membership
+    await member.destroy({ transaction });
+
+    // Unpair every device belonging to this member
+    await Device.update(
+      {
+        pairStatus: "Unpaired",
+        pairedAt: null,
+        status: "Offline",
+      },
+      {
+        where: {
+          userId,
+        },
+        transaction,
+      }
+    );
+
+    await transaction.commit();
+
+    res.status(200).json({
+      success: true,
+      message: "Family member removed successfully.",
+      familyId,
+      removedUserId: userId,
+    });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
+    throw error;
+  }
+});
