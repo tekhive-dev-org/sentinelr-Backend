@@ -21,7 +21,8 @@ parentalControlRouter.post('/parental-controls/:childUserId/bonus-time', authent
 parentalControlRouter.get('/parental-controls/:childUserId/activity', authenticate, parentalControlController.getParentalControlActivity)
 parentalControlRouter.patch('/parental-controls/:childUserId/monitoring', authenticate, parentalControlController.toggleMonitoring)
 parentalControlRouter.get('/parental-controls/:deviceId/installed-apps', authenticate, parentalControlController.getInstalledApps)
-
+parentalControlRouter.get('/parental-controls/device/my-controls', deviceAuth, parentalControlController.getMyParentalControls)
+parentalControlRouter.get('/parental-controls/device/my-parental-activity', deviceAuth, parentalControlController.getMyParentalControlActivity)
 
 
 

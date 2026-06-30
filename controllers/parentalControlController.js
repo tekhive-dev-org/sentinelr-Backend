@@ -823,6 +823,139 @@ exports.getDeviceStatus = catchAsync(async (req, res) => {
   }
 })
 
+exports.getMyParentalControls = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction();
+
+  try {
+    const device = req.device;
+
+    const childUserId = device.userId;
+
+    if (!childUserId) {
+      throw new AppError(
+        "This device is not assigned to a user",
+        403,
+        "DEVICE_NOT_ASSIGNED"
+      );
+    }
+
+    const membership = await FamilyMember.findOne({
+      where: {
+        userId: childUserId,
+        relationship: "Member",
+      },
+      attributes: ["familyId"],
+      transaction,
+    });
+
+    if (!membership) {
+      throw new AppError(
+        "User is not part of a family",
+        403,
+        "NOT_IN_FAMILY"
+      );
+    }
+
+    let controls = await ParentalControls.findOne({
+      where: {
+        userId: childUserId,
+        deviceId: device.id,
+      },
+      include: [
+        {
+          model: Device,
+          attributes: ["id", "deviceName"],
+        },
+      ],
+      transaction,
+    });
+
+    if (!controls) { throw new AppError("Parental controls have not been configured for this device", 404, "PARENTAL_CONTROLS_NOT_FOUND") }
+
+    await transaction.commit()
+
+    return res.status(200).json({
+      success: true,
+      controls: {
+        userId: controls.userId,
+        deviceId: controls.deviceId,
+        deviceName: controls.Device?.deviceName,
+        isMonitoring: controls.isMonitoring,
+        screenTimeLimit: controls.screenTime,
+        appBlocking: controls.appBlocking,
+        webFiltering: controls.webFiltering,
+        bedtime: controls.bedtime,
+        quickPause: controls.quickPause,
+      },
+    });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+    throw error;
+  }
+});
+
+
+exports.getMyParentalControlActivity = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction();
+
+  try {
+    const device = req.device;
+
+    const childUserId = device.userId;
+
+    if (!childUserId) {
+      throw new AppError(
+        "This device is not assigned to a user",
+        403,
+        "DEVICE_NOT_ASSIGNED"
+      );
+    }
+
+    const membership = await FamilyMember.findOne({
+      where: {
+        userId: childUserId,
+        relationship: "Member",
+      },
+      attributes: ["familyId"],
+      transaction,
+    });
+
+    if (!membership) {
+      throw new AppError(
+        "User is not part of a family",
+        403,
+        "NOT_IN_FAMILY"
+      );
+    }
+
+    const { limit = 20 } = req.query;
+
+    const activities = await ParentalControlActivity.findAll({
+      where: {
+        deviceUserId: childUserId,
+        deviceId: device.id,
+      },
+      order: [["createdAt", "DESC"]],
+      limit: Number(limit),
+      transaction,
+    });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      activities,
+    });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+    throw error;
+  }
+});
+
 
 
 

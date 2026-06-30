@@ -101,7 +101,7 @@ exports.pairDevice = catchAsync(async (req, res) => {
       pairedAt: new Date()
     }, { transaction })
 
-    await pairingCode.update({ status: 'Paired', deviceId: device.id, usedAt: new Date() }, { transaction })
+    await pairingCode.update({ status: 'Paired', deviceId: device.id, userId: device.userId, usedAt: new Date() }, { transaction })
     await transaction.commit()
 
     const deviceToken = jwt.sign({ deviceId: device.id, deviceName: device.deviceName }, process.env.DEVICE_SECRET, { expiresIn: '365d' })
