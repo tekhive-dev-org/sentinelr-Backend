@@ -1,5 +1,5 @@
 const { Op } = require("sequelize")
-const { Alert, User, Device, ParentalControlActivity, dbConnection } = require("../models")
+const { Alert, User, Device, ParentalControlActivity, Family, FamilyMember, dbConnection } = require("../models")
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/AppError")
 const { sendEmail } = require("../services/emailService")
@@ -172,6 +172,7 @@ exports.getAllAlerts = catchAsync(async (req, res) => {
 
 exports.getSOSAlerts = catchAsync(async (req, res) => {
   try {
+    console.log(req.user)
     const loggedInUserId = req.user.id
     const loggedInUserRole = req.user.role;
 
@@ -203,7 +204,6 @@ exports.getSOSAlerts = catchAsync(async (req, res) => {
         ];
       }
     }
-
     const alerts = await Alert.findAll({
       where: { userId: { [Op.in]: userIds }, type: "sos" },
       include: [{ model: User, attributes: ["id", "userName", "role"] }, { model: Device, attributes: ["id", "deviceName", "platform", "status"] }],
@@ -350,20 +350,18 @@ exports.resolveAlert = catchAsync(async (req, res) => {
 
 
 exports.dismissAlert = catchAsync(async (req, res) => {
-  const transaction = await dbConnection.transaction()
-
   try {
+    const userIds = await getAccessibleUserIds(req.user);
     const loggedInUserId = req.user.id
     const { alertId } = req.params
 
-    const alert = await Alert.findOne({ where: { id: alertId }, transaction })
+    const alert = await Alert.findOne({ where: { id: alertId, userId: { [Op.in]: userIds } } })
     if (!alert) throw new AppError("Alert not found", 404)
 
     alert.status = "cancelled"
     alert.resolvedAt = new Date()
 
-    await alert.save({ transaction })
-    await transaction.commit()
+    await alert.save()
 
     try {
       await ParentalControlActivity.create({
@@ -390,10 +388,7 @@ exports.dismissAlert = catchAsync(async (req, res) => {
       }
     })
   } 
-  catch (error) {
-    if (!transaction.finished) await transaction.rollback();
-    throw error
-  }
+  catch (error) { throw error }
 })
 
 exports.triggerSOS = catchAsync(async (req, res) => {
@@ -434,7 +429,33 @@ exports.triggerSOS = catchAsync(async (req, res) => {
       console.error("Failed to log trigger_sos activity:", logError)
     }
 
-    try{ await sendEmail(user.email, "Your OTP", `<p>Your OTP is <b>${otp}</b></p>`) }
+    try{
+          const member = await FamilyMember.findOne({ where: { userId: deviceUserId} });
+
+          if (member) {
+              const family = await Family.findByPk(member.familyId, { attributes: ["createdBy"] });
+
+              if (family) {
+                  const parent = await User.findByPk(family.createdBy, { attributes: ["email", "userName"] });
+
+                  if (parent?.email) {
+                      await sendEmail(
+                          parent.email,
+                          "🚨 SOS Alert Triggered",
+                          `<h2>SOS Alert</h2>
+                           <p>An SOS alert has been triggered by one of your family members.</p>
+                           <p><strong>Child ID:</strong> ${deviceUserId}</p>
+                           <p><strong>Device ID:</strong> ${deviceId}</p>
+                           <p><strong>Message:</strong> ${ message || "Emergency alert triggered." }</p>
+                           <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+                           ${ location ? `<p><strong>Latitude:</strong> ${location.latitude}</p>
+                                  <p><strong>Longitude:</strong> ${location.longitude}</p>
+                                  `: ""}`
+                      );
+                  }
+              }
+          }
+    }
     catch(emailErr){ console.error("Email failed:", emailErr) }
 
     res.status(201).json({
