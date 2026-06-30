@@ -10,6 +10,9 @@ alertRouter.patch("/alerts/:alertId/dismiss", authenticate, alertController.dism
 alertRouter.post("/alerts/sos/trigger", alertController.triggerSOS)
 alertRouter.get("/alerts/intruder", authenticate, alertController.getIntruderAlerts)
 alertRouter.post("/alerts/intruder/report", alertController.reportIntruderAttempt)
+alertRouter.get("/alerts/child/:userId", authenticate, alertController.getAlertsForSingleChild)
+alertRouter.get("/alerts/device/:deviceId", authenticate, alertController.getAlertsForSingleDevice)
+
 
 
 

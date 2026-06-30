@@ -655,6 +655,229 @@ exports.reportIntruderAttempt = catchAsync(async (req, res) => {
 })
 
 
+exports.getAlertsForSingleChild = catchAsync(async (req, res) => {
+  const { userId } = req.params;
+  const {
+    type = "all",
+    status = "all",
+    startDate,
+    endDate,
+    limit = 20,
+    offset = 0,
+  } = req.query;
+
+  const accessibleUserIds = await getAccessibleUserIds(req.user);
+
+  if (!accessibleUserIds.includes(Number(userId))) {
+    throw new AppError(
+      "You are not authorized to view alerts for this child",
+      403,
+      "NOT_AUTHORIZED"
+    );
+  }
+
+  const where = {
+    userId: Number(userId),
+  };
+
+  if (type !== "all") {
+    where.type = type;
+  }
+
+  if (status !== "all") {
+    where.status = status;
+  }
+
+  if (startDate && endDate) {
+    where.createdAt = {
+      [Op.between]: [new Date(startDate), new Date(endDate)],
+    };
+  } else if (startDate) {
+    where.createdAt = {
+      [Op.gte]: new Date(startDate),
+    };
+  } else if (endDate) {
+    where.createdAt = {
+      [Op.lte]: new Date(endDate),
+    };
+  }
+
+  const { rows: alerts, count: total } = await Alert.findAndCountAll({
+    where,
+    include: [
+      {
+        model: User,
+        attributes: ["id", "userName", "role"],
+      },
+      {
+        model: Device,
+        attributes: ["id", "deviceName", "platform", "status"],
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+    limit: Number(limit),
+    offset: Number(offset),
+    distinct: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    total,
+    alerts: alerts.map((a) => ({
+      id: a.id,
+      type: a.type,
+      title: a.title,
+      description: a.description,
+      status: a.status,
+      priority: a.priority,
+
+      device: a.Device
+        ? {
+            id: a.Device.id,
+            deviceName: a.Device.deviceName,
+            platform: a.Device.platform,
+            status: a.Device.status,
+          }
+        : null,
+
+      user: a.User
+        ? {
+            id: a.User.id,
+            name: a.User.userName,
+            role: a.User.role,
+          }
+        : null,
+
+      location: a.location
+        ? {
+            latitude: a.location.latitude,
+            longitude: a.location.longitude,
+            address: a.location.address,
+          }
+        : null,
+
+      createdAt: a.createdAt,
+      resolvedAt: a.resolvedAt,
+    })),
+  });
+});
+
+
+exports.getAlertsForSingleDevice = catchAsync(async (req, res) => {
+  const { deviceId } = req.params;
+
+  const {
+    type = "all",
+    status = "all",
+    startDate,
+    endDate,
+    limit = 20,
+    offset = 0,
+  } = req.query;
+
+  const accessibleUserIds = await getAccessibleUserIds(req.user);
+
+  const device = await Device.findOne({
+    where: {
+      id: deviceId,
+      userId: {
+        [Op.in]: accessibleUserIds,
+      },
+    },
+  });
+
+  if (!device) {
+    throw new AppError(
+      "Device not found or access denied",
+      404,
+      "DEVICE_NOT_FOUND"
+    );
+  }
+
+  const where = {
+    deviceId,
+  };
+
+  if (type !== "all") {
+    where.type = type;
+  }
+
+  if (status !== "all") {
+    where.status = status;
+  }
+
+  if (startDate && endDate) {
+    where.createdAt = {
+      [Op.between]: [new Date(startDate), new Date(endDate)],
+    };
+  } else if (startDate) {
+    where.createdAt = {
+      [Op.gte]: new Date(startDate),
+    };
+  } else if (endDate) {
+    where.createdAt = {
+      [Op.lte]: new Date(endDate),
+    };
+  }
+
+  const { rows: alerts, count: total } = await Alert.findAndCountAll({
+    where,
+    include: [
+      {
+        model: User,
+        attributes: ["id", "userName", "role"],
+      },
+      {
+        model: Device,
+        attributes: ["id", "deviceName", "platform", "status"],
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+    limit: Number(limit),
+    offset: Number(offset),
+    distinct: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    total,
+    device: {
+      id: device.id,
+      deviceName: device.deviceName,
+      platform: device.platform,
+      status: device.status,
+    },
+    alerts: alerts.map((a) => ({
+      id: a.id,
+      type: a.type,
+      title: a.title,
+      description: a.description,
+      status: a.status,
+      priority: a.priority,
+
+      user: a.User
+        ? {
+            id: a.User.id,
+            name: a.User.userName,
+            role: a.User.role,
+          }
+        : null,
+
+      location: a.location
+        ? {
+            latitude: a.location.latitude,
+            longitude: a.location.longitude,
+            address: a.location.address,
+          }
+        : null,
+
+      createdAt: a.createdAt,
+      resolvedAt: a.resolvedAt,
+    })),
+  });
+});
+
+
 
 
 

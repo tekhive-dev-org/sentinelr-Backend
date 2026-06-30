@@ -60,6 +60,152 @@ exports.updateUserProfile = async (req, res) => {
     }
 }
 
+exports.updateFamilyMemberProfile = catchAsync(async (req, res) => {
+  const transaction = await dbConnection.transaction();
+
+  try {
+    const loggedInUser = req.user;
+    const loggedInUserId = loggedInUser.id;
+    const targetUserId = Number(req.params.userId);
+
+    const { userName, email, phone } = req.body;
+
+    const targetUser = await User.findByPk(targetUserId, { transaction });
+
+    if (!targetUser) {
+      throw new AppError("User not found", 404, "USER_NOT_FOUND");
+    }
+
+    if (!targetUser.verified) {
+      throw new AppError(
+        "Please verify your account before updating your profile",
+        403,
+        "ACCOUNT_NOT_VERIFIED"
+      );
+    }
+
+    // ---------------------------------------------------
+    // Authorization
+    // ---------------------------------------------------
+
+    // User editing own profile
+    if (loggedInUserId !== targetUserId) {
+
+      // Only parents can edit someone else's profile
+      if (loggedInUser.role !== "Parent") {
+        throw new AppError(
+          "You are not allowed to update this profile",
+          403,
+          "NOT_AUTHORIZED"
+        );
+      }
+
+      // Parent must own the family
+      const family = await Family.findOne({
+        where: {
+          createdBy: loggedInUserId,
+        },
+        transaction,
+      });
+
+      if (!family) {
+        throw new AppError(
+          "Family not found",
+          404,
+          "FAMILY_NOT_FOUND"
+        );
+      }
+
+      // Target user must belong to parent's family
+      const member = await FamilyMember.findOne({
+        where: {
+          familyId: family.id,
+          userId: targetUserId,
+        },
+        transaction,
+      });
+
+      if (!member) {
+        throw new AppError(
+          "User is not a member of your family",
+          403,
+          "NOT_FAMILY_MEMBER"
+        );
+      }
+
+      // Optional safety:
+      // Parents can only edit Members.
+      if (targetUser.role !== "Member") {
+        throw new AppError(
+          "Parents can only edit member profiles",
+          403,
+          "INVALID_TARGET"
+        );
+      }
+    }
+
+    // ---------------------------------------------------
+    // Email uniqueness
+    // ---------------------------------------------------
+
+    if (email && email !== targetUser.email) {
+      const existingEmail = await User.findOne({
+        where: {
+          email,
+          id: {
+            [Op.ne]: targetUser.id,
+          },
+        },
+        transaction,
+      });
+
+      if (existingEmail) {
+        throw new AppError(
+          "Email already in use",
+          400,
+          "EMAIL_ALREADY_EXISTS"
+        );
+      }
+    }
+
+    const updatedFields = {
+      id: targetUser.id,
+    };
+
+    if (userName && userName !== targetUser.userName) {
+      targetUser.userName = userName;
+      updatedFields.userName = userName;
+    }
+
+    if (email && email !== targetUser.email) {
+      targetUser.email = email;
+      updatedFields.email = email;
+    }
+
+    if (phone && phone !== targetUser.phone) {
+      targetUser.phone = phone;
+      updatedFields.phone = phone;
+    }
+
+    await targetUser.save({ transaction });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      updated: updatedFields,
+    });
+
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
+    throw error;
+  }
+});
+
 
 exports.softDeleteAccount = async (req, res) => {
     try {

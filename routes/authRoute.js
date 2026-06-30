@@ -25,6 +25,7 @@ authRouter.put('/admin/:userId/restore', authenticate, authorizeAdmin, authContr
 
 authRouter.put('/user/update-profile-picture', authenticate, upload.single('profilePicture'), userController.updateProfilePicture)
 authRouter.put('/user/update-profile', authenticate, userController.updateUserProfile)
+authRouter.put("/user/:userId/profile", authenticate, userController.updateFamilyMemberProfile);
 authRouter.delete('/user/soft-delete', authenticate, userController.softDeleteAccount)
 
 // authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }) )
