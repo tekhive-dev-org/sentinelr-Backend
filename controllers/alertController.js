@@ -3,18 +3,86 @@ const { Alert, User, Device, ParentalControlActivity, dbConnection } = require("
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/AppError")
 const { sendEmail } = require("../services/emailService")
+const { getAccessibleUserIds } = require("../utils/accessControl");
 
 
 
+// exports.getAllAlerts = catchAsync(async (req, res) => {
+//   const transaction = await dbConnection.transaction()
+
+//   try {
+//     const loggedInUserId = req.user.id
+//     const { type = "all", status = "all", startDate, endDate, limit = 20, offset = 0 } = req.query
+
+//     const where = { userId: loggedInUserId }
+
+//     if (type !== "all") { where.type = type }
+//     if (status !== "all") { where.status = status}
+
+//     if (startDate && endDate) { where.createdAt = { [Op.between]: [new Date(startDate), new Date(endDate)] } } 
+//     else if (startDate) { where.createdAt = { [Op.gte]: new Date(startDate) } }
+//     else if (endDate) { where.createdAt = { [Op.lte]: new Date(endDate) } }
+
+//     const { rows: alerts, count: total } = await Alert.findAndCountAll({
+//       where,
+//       include: [{ model: User, attributes: ["id", "userName"] },{ model: Device, attributes: ["id"] }],
+//       order: [["createdAt", "DESC"]],
+//       limit: parseInt(limit),
+//       offset: parseInt(offset),
+//       transaction
+//     })
+
+//     await transaction.commit()
+
+//     res.status(200).json({
+//       success: true,
+//       alerts: alerts.map(a => ({
+//         id: a.id,
+//         type: a.type,
+//         title: a.title,
+//         description: a.description,
+//         status: a.status,
+//         priority: a.priority,
+//         deviceId: a.deviceId,
+//         userId: a.userId,
+//         userName: a.User?.userName,
+//         location: a.location ? {
+//           latitude: a.location.latitude,
+//           longitude: a.location.longitude,
+//           address: a.location.address
+//         } : null,
+//         createdAt: a.createdAt,
+//         resolvedAt: a.resolvedAt
+//       })),
+//       total
+//     })
+//   } 
+//   catch (error) {
+//     if (!transaction.finished) await transaction.rollback()
+//     throw error
+//   }
+// })
 
 exports.getAllAlerts = catchAsync(async (req, res) => {
-  const transaction = await dbConnection.transaction()
 
   try {
     const loggedInUserId = req.user.id
+    const loggedInUserRole = req.user.role;
     const { type = "all", status = "all", startDate, endDate, limit = 20, offset = 0 } = req.query
 
-    const where = { userId: loggedInUserId }
+    let userIds = [loggedInUserId];
+
+    if (loggedInUserRole === "Parent") {
+      const families = await Family.findAll({ where: { createdBy: loggedInUserId }, attributes: ["id"]});
+
+      if (families.length > 0) {
+        const familyIds = families.map((f) => f.id);
+        const members = await FamilyMember.findAll({ where: { familyId: { [Op.in]: familyIds } }, attributes: ["userId"] });
+        userIds = [...new Set([loggedInUserId, ...members.map((member) => member.userId) ]) ];
+      }
+    }
+
+    const where = { userId: { [Op.in]: userIds} };
 
     if (type !== "all") { where.type = type }
     if (status !== "all") { where.status = status}
@@ -25,14 +93,12 @@ exports.getAllAlerts = catchAsync(async (req, res) => {
 
     const { rows: alerts, count: total } = await Alert.findAndCountAll({
       where,
-      include: [{ model: User, attributes: ["id", "userName"] },{ model: Device, attributes: ["id"] }],
+      include: [{ model: User, attributes: ["id", "userName", "role"] },{ model: Device, attributes: ["id", "deviceName", "platform", "status"] }],
       order: [["createdAt", "DESC"]],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      transaction
+      limit: Number(limit),
+      offset: Number(offset),
+      distinct: true
     })
-
-    await transaction.commit()
 
     res.status(200).json({
       success: true,
@@ -43,9 +109,17 @@ exports.getAllAlerts = catchAsync(async (req, res) => {
         description: a.description,
         status: a.status,
         priority: a.priority,
-        deviceId: a.deviceId,
-        userId: a.userId,
-        userName: a.User?.userName,
+        device: a.Device ? {
+          id: a.Device.id,
+          deviceName: a.Device.deviceName,
+          platform: a.Device.platform,
+          status: a.Device.status,
+        } : null,
+        user: {
+          id: a.User?.id,
+          name: a.User?.userName,
+          role: a.User?.role
+        },
         location: a.location ? {
           latitude: a.location.latitude,
           longitude: a.location.longitude,
@@ -58,18 +132,81 @@ exports.getAllAlerts = catchAsync(async (req, res) => {
     })
   } 
   catch (error) {
-    if (!transaction.finished) await transaction.rollback()
     throw error
   }
 })
 
+// exports.getSOSAlerts = catchAsync(async (req, res) => {
+//   try {
+//     const loggedInUserId = req.user.id
+
+//     const alerts = await Alert.findAll({
+//       where: { userId: loggedInUserId, type: "sos" },
+//       include: [{ model: User, attributes: ["id", "userName"] }],
+//       order: [["createdAt", "DESC"]]
+//     })
+
+//     const activeSOSCount = alerts.filter(a => a.status === "active").length
+
+//     res.status(200).json({
+//       success: true,
+//       activeSOSCount,
+//       alerts: alerts.map(a => ({
+//         id: a.id,
+//         type: a.type,
+//         title: a.title,
+//         description: a.description,
+//         status: a.status,
+//         priority: a.priority,
+//         deviceId: a.deviceId,
+//         userId: a.userId,
+//         userName: a.User?.userName,
+//         location: a.location,
+//         createdAt: a.createdAt,
+//         resolvedAt: a.resolvedAt
+//       }))
+//     })
+//   } 
+//   catch (error) { throw error }
+// })
+
 exports.getSOSAlerts = catchAsync(async (req, res) => {
   try {
     const loggedInUserId = req.user.id
+    const loggedInUserRole = req.user.role;
+
+    let userIds = [loggedInUserId];
+
+    if (loggedInUserRole === "Parent") {
+      const families = await Family.findAll({
+        where: { createdBy: loggedInUserId },
+        attributes: ["id"],
+      });
+
+      if (families.length > 0) {
+        const familyIds = families.map((family) => family.id);
+
+        const members = await FamilyMember.findAll({
+          where: {
+            familyId: {
+              [Op.in]: familyIds,
+            },
+          },
+          attributes: ["userId"],
+        });
+
+        userIds = [
+          ...new Set([
+            loggedInUserId,
+            ...members.map((member) => member.userId),
+          ]),
+        ];
+      }
+    }
 
     const alerts = await Alert.findAll({
-      where: { userId: loggedInUserId, type: "sos" },
-      include: [{ model: User, attributes: ["id", "userName"] }],
+      where: { userId: { [Op.in]: userIds }, type: "sos" },
+      include: [{ model: User, attributes: ["id", "userName", "role"] }, { model: Device, attributes: ["id", "deviceName", "platform", "status"] }],
       order: [["createdAt", "DESC"]]
     })
 
@@ -85,10 +222,22 @@ exports.getSOSAlerts = catchAsync(async (req, res) => {
         description: a.description,
         status: a.status,
         priority: a.priority,
-        deviceId: a.deviceId,
-        userId: a.userId,
-        userName: a.User?.userName,
-        location: a.location,
+        device: a.Device?{
+          id: a.Device.id,
+          deviceName: a.Device.deviceName,
+          platform: a.Device.platform,
+          status: a.Device.status
+        }:null,
+        user: a.User?{
+          id: a.User.id,
+          userName: a.User.userName,
+          role: a.User.role
+        }:null,
+        location: a.location?{
+          latitude: a.location.latitude,
+          longitude: a.location.longitude,
+          address: a.location.address
+        }: null,
         createdAt: a.createdAt,
         resolvedAt: a.resolvedAt
       }))
@@ -97,19 +246,73 @@ exports.getSOSAlerts = catchAsync(async (req, res) => {
   catch (error) { throw error }
 })
 
+// exports.resolveAlert = catchAsync(async (req, res) => {
+//   const transaction = await dbConnection.transaction()
+
+//   try {
+//     const loggedInUserId = req.user.id
+//     const { alertId } = req.params
+//     const { resolution, status } = req.body
+
+//     const alert = await Alert.findOne({ where: { id: alertId }, transaction })
+//     if (!alert) throw new AppError("Alert not found", 404)
+
+//     alert.status = status || "resolved"
+//     alert.description = `${alert.description}\nResolution: ${resolution}`
+//     alert.resolvedAt = new Date()
+
+//     await alert.save({ transaction })
+//     await transaction.commit()
+
+//     try {
+//       await ParentalControlActivity.create({
+//         actingUserId: loggedInUserId,
+//         deviceUserId: alert.userId,
+//         deviceId: alert.deviceId,
+//         type: "resolve_alert",
+//         description: resolution,
+//         timestamp: new Date()
+//       });
+//     } catch (logError) {
+//       console.error("Failed to log resolve_alert activity:", logError)
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Alert resolved successfully",
+//       alert: {
+//         id: alert.id,
+//         type: alert.type,
+//         status: alert.status,
+//         resolution,
+//         resolvedAt: alert.resolvedAt
+//       }
+//     });
+//   } catch (error) {
+//     if (!transaction.finished) await transaction.rollback()
+//     throw error
+//   }
+// })
+
 exports.resolveAlert = catchAsync(async (req, res) => {
   const transaction = await dbConnection.transaction()
-
+  
   try {
-    const loggedInUserId = req.user.id
+    const userIds = await getAccessibleUserIds(req.user);
     const { alertId } = req.params
     const { resolution, status } = req.body
 
-    const alert = await Alert.findOne({ where: { id: alertId }, transaction })
+    const alert = await Alert.findOne({ where: { id: alertId, userId: { [Op.in]: userIds } }, transaction })
     if (!alert) throw new AppError("Alert not found", 404)
 
+    if (alert.status !== "active") { throw new AppError("Alert has already been resolved", 400); }
+    
+    const allowedStatuses = ["resolved", "cancelled"];
+
+    if (status && !allowedStatuses.includes(status)) { throw new AppError("Invalid alert status", 400); }
     alert.status = status || "resolved"
-    alert.description = `${alert.description}\nResolution: ${resolution}`
+
+    if (resolution) { alert.description = `${alert.description}\nResolution: ${resolution}` }
     alert.resolvedAt = new Date()
 
     await alert.save({ transaction })
@@ -117,11 +320,11 @@ exports.resolveAlert = catchAsync(async (req, res) => {
 
     try {
       await ParentalControlActivity.create({
-        actingUserId: loggedInUserId,
+        actingUserId: req.user.id,
         deviceUserId: alert.userId,
         deviceId: alert.deviceId,
         type: "resolve_alert",
-        description: resolution,
+        description: resolution || "Alert resolved",
         timestamp: new Date()
       });
     } catch (logError) {
@@ -135,7 +338,7 @@ exports.resolveAlert = catchAsync(async (req, res) => {
         id: alert.id,
         type: alert.type,
         status: alert.status,
-        resolution,
+        resolution: resolution || alert.description,
         resolvedAt: alert.resolvedAt
       }
     });
@@ -255,13 +458,80 @@ exports.triggerSOS = catchAsync(async (req, res) => {
   }
 })
 
+// exports.getIntruderAlerts = catchAsync(async (req, res) => {
+//   try {
+//     const loggedInUserId = req.user.id
+
+//     const alerts = await Alert.findAll({
+//       where: { userId: loggedInUserId, type: "intruder" },
+//       include: [{ model: User, attributes: ["id", "userName"] }],
+//       order: [["createdAt", "DESC"]]
+//     })
+
+//     const activeCount = alerts.filter(a => a.status === "active").length
+
+//     res.status(200).json({
+//       success: true,
+//       activeIntruderCount: activeCount,
+//       alerts: alerts.map(a => ({
+//         id: a.id,
+//         type: a.type,
+//         title: a.title,
+//         description: a.description,
+//         status: a.status,
+//         priority: a.priority,
+//         deviceId: a.deviceId,
+//         userId: a.userId,
+//         userName: a.User?.userName,
+//         location: a.location,
+//         createdAt: a.createdAt,
+//         resolvedAt: a.resolvedAt,
+//         metadata: a.metadata // optional: store attempt details here
+//       }))
+//     })
+//   } 
+//   catch (error) {
+//     throw error
+//   }
+// })
+
 exports.getIntruderAlerts = catchAsync(async (req, res) => {
   try {
     const loggedInUserId = req.user.id
+    const loggedInUserRole = req.user.role
+
+    let userIds = [loggedInUserId];
+
+    if (loggedInUserRole === "Parent") {
+      const families = await Family.findAll({
+        where: { createdBy: loggedInUserId },
+        attributes: ["id"],
+      });
+
+      if (families.length > 0) {
+        const familyIds = families.map((family) => family.id);
+
+        const members = await FamilyMember.findAll({
+          where: {
+            familyId: {
+              [Op.in]: familyIds,
+            },
+          },
+          attributes: ["userId"],
+        });
+
+        userIds = [
+          ...new Set([
+            loggedInUserId,
+            ...members.map((member) => member.userId),
+          ]),
+        ];
+      }
+    }
 
     const alerts = await Alert.findAll({
-      where: { userId: loggedInUserId, type: "intruder" },
-      include: [{ model: User, attributes: ["id", "userName"] }],
+      where: { userId: { [Op.in]: userIds }, type: "intruder" },
+      include: [{ model: User, attributes: ["id", "userName", "role"] }, { model: Device, attributes: ["id", "deviceName", "platform", "status"] }],
       order: [["createdAt", "DESC"]]
     })
 
@@ -277,10 +547,22 @@ exports.getIntruderAlerts = catchAsync(async (req, res) => {
         description: a.description,
         status: a.status,
         priority: a.priority,
-        deviceId: a.deviceId,
-        userId: a.userId,
-        userName: a.User?.userName,
-        location: a.location,
+        device: a.Device ? {
+          id: a.Device.id,
+          deviceName: a.Device.deviceName,
+          platform: a.Device.platform,
+          status: a.Device.status
+        } : null,
+        user: a.User ? {
+          id: a.User.id,
+          userName: a.User.userName,
+          role: a.User.role
+        } : null,
+        location: a.location?{
+          latitude: a.location.latitude,
+          longitude: a.location.longitude,
+          address: a.location.address
+        } : null,
         createdAt: a.createdAt,
         resolvedAt: a.resolvedAt,
         metadata: a.metadata // optional: store attempt details here
